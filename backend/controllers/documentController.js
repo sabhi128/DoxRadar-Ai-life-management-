@@ -120,20 +120,23 @@ const deleteDocument = asyncHandler(async (req, res) => {
         throw new Error('User not authorized');
     }
 
-    // Delete from Supabase Storage
-    // Extract path from public URL: https://project.supabase.co/storage/v1/object/public/documents/user_uuid/filename
-    // We stored the public URL in `path`. We need to extract the relative path.
-    // However, it's safer to try finding the part after '/documents/'
-
+    // Extract file path from URL
+    // URL format: https://[project].supabase.co/storage/v1/object/public/documents/[user_id]/[filename]
     try {
-        const urlParts = document.path.split('/documents/');
-        if (urlParts.length > 1) {
-            const storagePath = urlParts[1]; // decodeURIComponent not strictly needed if Supabase handles it, but good practice if spaces
+        const url = new URL(document.path);
+        // The path in bucket starts after '/documents/'
+        const pathParts = url.pathname.split('/documents/');
+        if (pathParts.length > 1) {
+            const storagePath = decodeURIComponent(pathParts[1]);
+
             const { error: deleteError } = await supabase.storage
                 .from('documents')
-                .remove([decodeURIComponent(storagePath)]);
+                .remove([storagePath]);
 
-            if (deleteError) console.error('Supabase Delete Error:', deleteError);
+            if (deleteError) {
+                console.error('Supabase Delete Error:', deleteError);
+                // Don't throw here, continue to delete from DB so they stay in sync
+            }
         }
     } catch (err) {
         console.error('Error parsing document path for deletion:', err);
