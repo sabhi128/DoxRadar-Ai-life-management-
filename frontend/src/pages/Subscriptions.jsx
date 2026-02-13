@@ -80,11 +80,12 @@ const Subscriptions = () => {
             name: sub.name,
             price: sub.price,
             billingCycle: sub.billingCycle,
-            nextBillingDate: sub.nextBillingDate.split('T')[0], // Format date for input
+            // Safe check for date
+            nextBillingDate: sub.nextBillingDate ? sub.nextBillingDate.toString().split('T')[0] : '',
             category: sub.category,
             paymentMethod: sub.paymentMethod || 'Credit Card'
         });
-        setCurrentId(sub._id);
+        setCurrentId(sub.id); // Fixed: _id -> id
         setIsEditMode(true);
         setIsModalOpen(true);
     };
@@ -99,7 +100,7 @@ const Subscriptions = () => {
         try {
             await api.delete(`/subscriptions/${id}`);
             toast.success('Subscription deleted', { id: toastId });
-            setSubscriptions(subscriptions.filter(sub => sub._id !== id));
+            setSubscriptions(subscriptions.filter(sub => sub.id !== id)); // Fixed: _id -> id
         } catch (error) {
             toast.error('Failed to delete', { id: toastId });
         }
@@ -182,7 +183,7 @@ const Subscriptions = () => {
                 >
                     {filteredSubscriptions.map((sub) => (
                         <motion.div
-                            key={sub._id}
+                            key={sub.id}
                             variants={itemVariants}
                             className="card p-5 hover:shadow-md transition-shadow relative group"
                         >
@@ -202,7 +203,7 @@ const Subscriptions = () => {
                                     <Pencil size={16} />
                                 </button>
                                 <button
-                                    onClick={() => handleDelete(sub._id)}
+                                    onClick={() => handleDelete(sub.id)}
                                     className="text-text-muted hover:text-red-500 p-1 bg-white rounded-full shadow-sm"
                                     title="Delete"
                                 >
