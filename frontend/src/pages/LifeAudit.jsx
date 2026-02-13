@@ -29,7 +29,11 @@ const LifeAudit = () => {
             if (data && data.length > 0) {
                 // Use the most recent audit
                 setAuditData(data[0]);
-                setScores(data[0].scores);
+                // Ensure scores is an object, even if empty in DB
+                setScores(data[0].scores || {
+                    health: 5, career: 5, finance: 5, relationships: 5,
+                    personalGrowth: 5, recreation: 5, environment: 5, spirituality: 5
+                });
                 setNotes(data[0].notes || '');
             } else {
                 // No audit found, start fresh
@@ -47,7 +51,7 @@ const LifeAudit = () => {
     }, []);
 
     const handleScoreChange = (category, value) => {
-        setScores({ ...scores, [category]: parseInt(value) });
+        setScores(prev => ({ ...prev, [category]: parseInt(value) }));
     };
 
     const handleSubmit = async (e) => {
@@ -63,9 +67,15 @@ const LifeAudit = () => {
         }
     };
 
-    const chartData = Object.keys(scores).map(key => ({
+    // Safely generate chart data
+    const safeScores = scores || {
+        health: 5, career: 5, finance: 5, relationships: 5,
+        personalGrowth: 5, recreation: 5, environment: 5, spirituality: 5
+    };
+
+    const chartData = Object.keys(safeScores).map(key => ({
         subject: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'),
-        A: scores[key],
+        A: safeScores[key],
         fullMark: 10,
     }));
 
@@ -138,7 +148,7 @@ const LifeAudit = () => {
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {Object.keys(scores).map((category) => (
+                                {Object.keys(safeScores).map((category) => (
                                     <div key={category}>
                                         <label className="block text-sm font-medium text-text-main mb-1 capitalize">
                                             {category.replace(/([A-Z])/g, ' $1')}
