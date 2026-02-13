@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, CreditCard, Calendar, Trash2, X, Check, Pencil, Eye, Search } from 'lucide-react';
-import axios from 'axios';
+import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 const Subscriptions = () => {
     const [subscriptions, setSubscriptions] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
-    const user = JSON.parse(localStorage.getItem('user'));
 
     const [isEditMode, setIsEditMode] = useState(false);
     const [currentId, setCurrentId] = useState(null);
@@ -25,15 +24,9 @@ const Subscriptions = () => {
         paymentMethod: 'Credit Card'
     });
 
-    const config = {
-        headers: {
-            Authorization: `Bearer ${user?.token}`,
-        },
-    };
-
     const fetchSubscriptions = async () => {
         try {
-            const { data } = await axios.get('/api/subscriptions', config);
+            const { data } = await api.get('/subscriptions');
             setSubscriptions(data);
             setLoading(false);
         } catch (error) {
@@ -69,10 +62,10 @@ const Subscriptions = () => {
         const toastId = toast.loading(isEditMode ? 'Updating subscription...' : 'Adding subscription...');
         try {
             if (isEditMode) {
-                await axios.put(`/api/subscriptions/${currentId}`, formData, config);
+                await api.put(`/subscriptions/${currentId}`, formData);
                 toast.success('Subscription updated!', { id: toastId });
             } else {
-                await axios.post('/api/subscriptions', formData, config);
+                await api.post('/subscriptions', formData);
                 toast.success('Subscription added!', { id: toastId });
             }
             fetchSubscriptions();
@@ -104,7 +97,7 @@ const Subscriptions = () => {
         if (!window.confirm('Delete this subscription?')) return;
         const toastId = toast.loading('Deleting...');
         try {
-            await axios.delete(`/api/subscriptions/${id}`, config);
+            await api.delete(`/subscriptions/${id}`);
             toast.success('Subscription deleted', { id: toastId });
             setSubscriptions(subscriptions.filter(sub => sub._id !== id));
         } catch (error) {

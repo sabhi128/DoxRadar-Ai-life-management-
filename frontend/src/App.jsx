@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth, AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -9,8 +10,14 @@ import LifeAudit from './pages/LifeAudit';
 import Layout from './components/Layout';
 
 // Simple protected route wrapper
+// Simple protected route wrapper
 const ProtectedRoute = ({ children }) => {
-    const user = localStorage.getItem('user');
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return <div className="flex h-screen items-center justify-center">Loading...</div>; // Simple loading spinner
+    }
+
     if (!user) {
         return <Navigate to="/login" replace />;
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Upload, Search, Filter, MoreVertical, Download, Trash2, Eye } from 'lucide-react';
-import axios from 'axios';
+import { FileText, Upload, Search, Filter, MoreVertical, Download, Trash2, Eye, X, AlertCircle, Calendar, Tag, ShieldAlert, Sparkles } from 'lucide-react';
+import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 const Documents = () => {
@@ -9,18 +9,10 @@ const Documents = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const fileInputRef = useRef(null);
-    const user = JSON.parse(localStorage.getItem('user'));
-
-    // Auth token configuration
-    const config = {
-        headers: {
-            Authorization: `Bearer ${user?.token}`,
-        },
-    };
 
     const fetchDocuments = async () => {
         try {
-            const res = await axios.get('/api/documents', config);
+            const res = await api.get('/documents');
             setDocuments(res.data);
             setLoading(false);
         } catch (error) {
@@ -48,10 +40,9 @@ const Documents = () => {
         const toastId = toast.loading('Uploading document...');
 
         try {
-            await axios.post('/api/documents', formData, {
+            await api.post('/documents', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
-                    Authorization: `Bearer ${user.token}`,
                 },
             });
             toast.success('Document uploaded successfully!', { id: toastId });
@@ -66,7 +57,7 @@ const Documents = () => {
 
         const toastId = toast.loading('Deleting...');
         try {
-            await axios.delete(`/api/documents/${id}`, config);
+            await api.delete(`/documents/${id}`);
             toast.success('Document deleted', { id: toastId });
             setDocuments(documents.filter(doc => doc._id !== id));
         } catch (error) {
@@ -116,9 +107,8 @@ const Documents = () => {
             const toastId = toast.loading('Starting download...');
             const url = getFileUrl(doc.path);
 
-            const response = await axios.get(url, {
-                responseType: 'blob',
-                ...config
+            const response = await api.get(url, {
+                responseType: 'blob'
             });
 
             const blob = new Blob([response.data], { type: response.headers['content-type'] });
@@ -183,6 +173,112 @@ const Documents = () => {
                 </div>
             </div>
 
+            {/* AI Insights Modal */}
+            {activeMenu && documents.find(d => d._id === activeMenu)?.analysis && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                    >
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                            <div>
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <FileText size={20} />
+                                    Document Intelligence
+                                </h2>
+                                <p className="text-blue-100 text-sm">AI Analysis for {documents.find(d => d._id === activeMenu)?.name}</p>
+                            </div>
+                            <button
+                                onClick={() => setActiveMenu(null)}
+                                className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* Summary Section */}
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                                    <AlertCircle size={18} />
+                                    Executive Summary
+                                </h3>
+                                <p className="text-blue-900/80 text-sm leading-relaxed">
+                                    {documents.find(d => d._id === activeMenu)?.analysis?.summary || "Analysis pending..."}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Key Dates */}
+                                <div className="space-y-3">
+                                    <h3 className="font-bold text-text-main flex items-center gap-2">
+                                        <Calendar size={18} className="text-primary" />
+                                        Key Dates
+                                    </h3>
+                                    <div className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                                        <span className="text-sm text-text-muted">Expiry Date</span>
+                                        <span className="font-medium text-text-main">
+                                            {documents.find(d => d._id === activeMenu)?.analysis?.expiryDate
+                                                ? new Date(documents.find(d => d._id === activeMenu).analysis.expiryDate).toLocaleDateString()
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
+                                        <span className="text-sm text-text-muted">Renewal Date</span>
+                                        <span className="font-medium text-text-main">
+                                            {documents.find(d => d._id === activeMenu)?.analysis?.renewalDate
+                                                ? new Date(documents.find(d => d._id === activeMenu).analysis.renewalDate).toLocaleDateString()
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Smart Tags */}
+                                <div className="space-y-3">
+                                    <h3 className="font-bold text-text-main flex items-center gap-2">
+                                        <Tag size={18} className="text-primary" />
+                                        Smart Tags
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {documents.find(d => d._id === activeMenu)?.analysis?.tags?.map((tag, i) => (
+                                            <span key={i} className="px-3 py-1 bg-gray-100 text-text-muted rounded-full text-xs font-medium border border-gray-200">
+                                                {tag}
+                                            </span>
+                                        )) || <span className="text-text-muted text-sm italic">No tags detected</span>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Risks Section */}
+                            <div className="space-y-3">
+                                <h3 className="font-bold text-text-main flex items-center gap-2 text-red-600">
+                                    <ShieldAlert size={18} />
+                                    Risk & Obligations
+                                </h3>
+                                <ul className="space-y-2">
+                                    {documents.find(d => d._id === activeMenu)?.analysis?.risks?.map((risk, i) => (
+                                        <li key={i} className="flex items-start gap-3 bg-red-50 p-3 rounded-lg border border-red-100/50">
+                                            <div className="mt-0.5 min-w-[6px] h-[6px] rounded-full bg-red-500"></div>
+                                            <span className="text-sm text-red-800">{risk}</span>
+                                        </li>
+                                    )) || <li className="text-text-muted text-sm italic">No risks detected</li>}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end">
+                            <button
+                                onClick={() => setActiveMenu(null)}
+                                className="btn btn-primary"
+                            >
+                                Close Insights
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
             {loading ? (
                 <div className="flex justify-center py-20">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -201,6 +297,15 @@ const Documents = () => {
                             whileHover={{ y: -5 }}
                             className="group card p-5 hover:shadow-lg transition-all duration-300 relative overflow-visible border border-border-light/50"
                         >
+                            {/* Analysis Badge */}
+                            {doc.analysis && (
+                                <div className="absolute top-4 left-4 z-10">
+                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-wider rounded-full border border-green-200">
+                                        <Sparkles size={10} /> AI Analyzed
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="document-menu-container absolute top-4 right-4 z-20">
                                 <button
                                     onClick={(e) => toggleMenu(e, doc._id)}
@@ -234,7 +339,7 @@ const Documents = () => {
                                 )}
                             </div>
 
-                            <div className="flex items-start gap-4 mb-4">
+                            <div className="flex items-start gap-4 mb-4 mt-6">
                                 <div className={`p-4 rounded-xl ${doc.type === 'PDF' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'}`}>
                                     <FileText size={32} />
                                 </div>
@@ -244,10 +349,28 @@ const Documents = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border-light/50">
-                                <span className="text-xs text-text-muted font-medium bg-gray-50 px-2 py-1 rounded-md">
-                                    {new Date(doc.createdAt).toLocaleDateString()}
-                                </span>
+                            {/* AI Summary Preview */}
+                            {doc.analysis?.summary && (
+                                <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <p className="text-xs text-text-muted line-clamp-2 leading-relaxed">
+                                        <span className="font-semibold text-primary">AI Summary:</span> {doc.analysis.summary}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-border-light/50">
+                                {doc.analysis ? (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setActiveMenu(doc._id); }}
+                                        className="text-xs font-medium text-primary hover:text-primary-dark flex items-center gap-1 transition-colors"
+                                    >
+                                        <Sparkles size={14} /> View Insights
+                                    </button>
+                                ) : (
+                                    <span className="text-xs text-text-muted font-medium bg-gray-50 px-2 py-1 rounded-md">
+                                        {new Date(doc.createdAt).toLocaleDateString()}
+                                    </span>
+                                )}
 
                                 <div className="flex gap-2">
                                     <button

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import { motion } from 'framer-motion';
 import Logo from '../assets/Logo.jpeg';
@@ -13,6 +13,7 @@ const Register = () => {
     });
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { signUp } = useAuth();
 
     const { name, email, password } = formData;
 
@@ -26,13 +27,18 @@ const Register = () => {
     const onSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/api/auth/register', formData);
-            if (response.data) {
-                localStorage.setItem('user', JSON.stringify(response.data));
-                navigate('/dashboard');
-            }
+            const { error } = await signUp({
+                email,
+                password,
+                options: {
+                    data: { name }
+                }
+            });
+            if (error) throw error;
+            // Supabase auto-confirms or sends email. For now assume success.
+            navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed');
+            setError(err.message || 'Registration failed');
         }
     };
 

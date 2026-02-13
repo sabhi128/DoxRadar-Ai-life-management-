@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { Save, RefreshCw, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 const LifeAudit = () => {
     const [auditData, setAuditData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
-    const user = JSON.parse(localStorage.getItem('user'));
 
     const [scores, setScores] = useState({
         health: 5,
@@ -23,15 +22,10 @@ const LifeAudit = () => {
     });
     const [notes, setNotes] = useState('');
 
-    const config = {
-        headers: {
-            Authorization: `Bearer ${user?.token}`,
-        },
-    };
 
     const fetchAudit = async () => {
         try {
-            const { data } = await axios.get('/api/life-audit', config);
+            const { data } = await api.get('/life-audit');
             if (data && data.length > 0) {
                 // Use the most recent audit
                 setAuditData(data[0]);
@@ -60,7 +54,7 @@ const LifeAudit = () => {
         e.preventDefault();
         const toastId = toast.loading('Saving audit...');
         try {
-            const { data } = await axios.post('/api/life-audit', { scores, notes }, config);
+            const { data } = await api.post('/life-audit', { scores, notes });
             setAuditData(data);
             setIsEditing(false);
             toast.success('Life Audit saved!', { id: toastId });

@@ -1,12 +1,15 @@
 const asyncHandler = require('express-async-handler');
-const LifeAudit = require('../models/LifeAudit');
+const prisma = require('../prismaClient');
 
 // @desc    Get life audits
 // @route   GET /api/life-audit
 // @access  Private
 const getLifeAudits = asyncHandler(async (req, res) => {
     // Return the most recent audit first
-    const audits = await LifeAudit.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const audits = await prisma.lifeAudit.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+    });
     res.status(200).json(audits);
 });
 
@@ -21,10 +24,12 @@ const createLifeAudit = asyncHandler(async (req, res) => {
         throw new Error('Please add scores');
     }
 
-    const audit = await LifeAudit.create({
-        user: req.user.id,
-        scores,
-        notes,
+    const audit = await prisma.lifeAudit.create({
+        data: {
+            userId: req.user.id,
+            ratings: scores,
+            notes,
+        },
     });
 
     res.status(201).json(audit);

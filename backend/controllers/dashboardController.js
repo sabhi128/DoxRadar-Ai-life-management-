@@ -1,37 +1,30 @@
 const asyncHandler = require('express-async-handler');
-const Document = require('../models/Document');
-const LifeAudit = require('../models/LifeAudit');
-const Subscription = require('../models/Subscription');
+const prisma = require('../prismaClient');
 
 // @desc    Get dashboard stats
 // @route   GET /api/dashboard/stats
 // @access  Private
 const getDashboardStats = asyncHandler(async (req, res) => {
-    const totalDocs = await Document.countDocuments({ user: req.user.id });
-
-    // Caclulate Documents by Category (for "Risk/Storage" widget)
-    // We can use this to show "Personal" vs "Work" vs "Financial" docs
-    const docsByCategory = await Document.aggregate([
-        { $match: { user: req.user._id } }, // Ensure ObjectId match if using mongoose, req.user.id is string usually but let's trust middleware for now or cast if needed. 
-        // Actually req.user.id is usually a string from simple middleware. Safe to use for simple find, but aggregate might need ObjectId.
-        // Let's stick to simple counts to avoid ObjectId casting issues for now if we don't have mongoose.Types.ObjectId handy. 
-        // We'll just fetch all and reduce, it's safer for small apps.
-    ]);
+    const totalDocs = await prisma.document.count({
+        where: { userId: req.user.id }
+    });
 
     // Fetch all subscriptions to calc cost
-    const subscriptions = await Subscription.find({ user: req.user.id });
+    const subscriptions = await prisma.subscription.findMany({
+        where: { userId: req.user.id }
+    });
 
     const totalMonthlyCost = subscriptions.reduce((acc, sub) => {
-        const price = parseFloat(sub.price);
-        return sub.billingCycle === 'Monthly' ? acc + price : acc + (price / 12);
+        const price = parseFloat(sub.price) || 0;
+        return sub.period === 'Monthly' ? acc + price : acc + (price / 12);
     }, 0);
 
     // Find nearest billing date
     const today = new Date();
     const upcomingBills = subscriptions
         .map(sub => ({
-            ...sub.toObject(),
-            nextDate: new Date(sub.nextBillingDate)
+            ...sub,
+            nextDate: new Date(sub.nextPayment)
         }))
         .filter(sub => sub.nextDate >= today)
         .sort((a, b) => a.nextDate - b.nextDate);
@@ -40,7 +33,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     // Calc spend by category
     const spendByCategory = subscriptions.reduce((acc, sub) => {
-        const cost = sub.billingCycle === 'Monthly' ? sub.price : sub.price / 12;
+        const cost = sub.period === 'Monthly' ? (parseFloat(sub.price) || 0) : (parseFloat(sub.price) || 0) / 12;
         acc[sub.category] = (acc[sub.category] || 0) + cost;
         return acc;
     }, {});
@@ -51,13 +44,16 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     })).sort((a, b) => b.amount - a.amount).slice(0, 5); // Top 5 categories
 
     // Fetch latest Life Audit
-    const latestAudit = await LifeAudit.findOne({ user: req.user.id }).sort({ createdAt: -1 });
+    const latestAudit = await prisma.lifeAudit.findFirst({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' }
+    });
 
     res.status(200).json({
         totalDocuments: totalDocs,
         totalMonthlyCost: totalMonthlyCost.toFixed(2),
-        nextBill: nextBill ? { name: nextBill.name, amount: nextBill.price, date: nextBill.nextBillingDate } : null,
-        lifeAudit: latestAudit ? latestAudit.scores : null,
+        nextBill: nextBill ? { name: nextBill.name, amount: nextBill.price, date: nextBill.nextPayment } : null,
+        lifeAudit: latestAudit ? latestAudit.ratings : null, // Mapped 'scores' to 'ratings' based on schema
         subscriptionCount: subscriptions.length,
         spendChartData
     });
@@ -68,19 +64,21 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 // @access  Private
 const getRecentActivity = asyncHandler(async (req, res) => {
     // Fetch recent 5 documents
-    const recentDocs = await Document.find({ user: req.user.id })
-        .sort({ createdAt: -1 })
-        .limit(5);
+    const recentDocs = await prisma.document.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+    });
 
     // Map to the format frontend expects
     const activityLog = recentDocs.map(doc => ({
-        id: doc._id,
+        id: doc.id,
         name: doc.name,
         role: doc.category,
         timeIn: new Date(doc.createdAt).toLocaleDateString(),
-        timeOut: 'N/A', // Docs don't have timeout, but we need to match table structure or update frontend
-        status: 'Uploaded',
-        statusColor: 'bg-green-100 text-green-700'
+        timeOut: 'N/A',
+        status: doc.analysis ? 'AI Analyzed' : 'Uploaded',
+        statusColor: doc.analysis ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
     }));
 
     res.status(200).json(activityLog);

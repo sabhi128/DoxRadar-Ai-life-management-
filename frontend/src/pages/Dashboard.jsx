@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, TrendingUp, MoreVertical, Plus, Activity, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
@@ -54,8 +54,6 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [openActionId, setOpenActionId] = useState(null);
 
-    const user = JSON.parse(localStorage.getItem('user'));
-
     // Handle click outside to close dropdown
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -69,17 +67,12 @@ const Dashboard = () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [openActionId]);
-    const config = {
-        headers: {
-            Authorization: `Bearer ${user?.token}`,
-        },
-    };
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const statsRes = await axios.get('/api/dashboard/stats', config);
-                const activityRes = await axios.get('/api/dashboard/activity', config);
+                const statsRes = await api.get('/dashboard/stats');
+                const activityRes = await api.get('/dashboard/activity');
 
                 setStats(statsRes.data);
                 setActivityLog(activityRes.data);
@@ -90,9 +83,7 @@ const Dashboard = () => {
             }
         };
 
-        if (user) {
-            fetchData();
-        }
+        fetchData();
     }, [refreshKey]);
 
     // Prepare chart data
@@ -135,15 +126,62 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-8 p-2">
-            {/* Top Row Widgets */}
+            {/* Hero Section */}
             <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="w-full bg-gradient-to-r from-blue-900 to-indigo-900 rounded-3xl p-8 md:p-12 text-center text-white shadow-2xl relative overflow-hidden mb-12"
+            >
+                {/* Background Effect */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none">
+                    <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                </div>
+
+                <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center">
+                    {/* Top Tagline */}
+                    <span className="inline-block py-1.5 px-4 rounded-full bg-white/10 border border-white/20 text-blue-200 text-xs font-bold tracking-widest uppercase mb-6 backdrop-blur-sm">
+                        AI-Powered Personal Operations Agent
+                    </span>
+
+                    {/* Main Headline */}
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-blue-200 drop-shadow-sm">
+                        We Handle the Calls, the Bills, and the Bureaucracy - So You Don’t Have To.
+                    </h1>
+
+                    {/* Subheadline */}
+                    <p className="text-lg md:text-xl text-blue-100/90 max-w-3xl mx-auto leading-relaxed mb-10 font-medium">
+                        DoxRadar monitors your finances, detects problems, negotiates with providers, cancels unwanted subscriptions, disputes incorrect charges, and resolves administrative issues automatically.
+                    </p>
+
+                    {/* Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-5 w-full justify-center items-center">
+                        <button className="px-8 py-4 bg-white text-blue-900 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-blue-900/20 transform hover:-translate-y-1 w-full sm:w-auto">
+                            Start Free Trial
+                        </button>
+                        <button className="px-8 py-4 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all backdrop-blur-sm w-full sm:w-auto">
+                            See How It Works
+                        </button>
+                    </div>
+
+                    {/* Trust Line */}
+                    <div className="mt-10 pt-6 border-t border-white/10 w-full max-w-2xl">
+                        <p className="text-xs md:text-sm text-blue-200/70 font-medium tracking-wide">
+                            Real-Time Monitoring   Secure Infrastructure   Legally Authorized Representation
+                        </p>
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Top Row Widgets */}
+            < motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
                 className="grid grid-cols-1 lg:grid-cols-3 gap-8"
             >
                 {/* Widget 1: Life Balance Overview (Radar Chart) */}
-                <motion.div
+                < motion.div
                     variants={itemVariants}
                     whileHover="hover"
                     className="card p-6 relative flex flex-col h-80 bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl overflow-hidden group"
@@ -192,10 +230,10 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-                </motion.div>
+                </motion.div >
 
                 {/* Widget 2: Monthly Spend (Donut Chart) */}
-                <motion.div
+                < motion.div
                     variants={itemVariants}
                     whileHover="hover"
                     className="card p-6 bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl cursor-pointer flex flex-col justify-between h-80 relative overflow-hidden group"
@@ -256,19 +294,19 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-                </motion.div>
+                </motion.div >
 
                 {/* Widget 3: Document Stats */}
-                <motion.div
+                < motion.div
                     variants={itemVariants}
                     whileHover="hover"
                     className="card p-6 bg-gradient-to-br from-indigo-600 via-primary to-purple-700 text-white shadow-xl shadow-primary/20 relative overflow-hidden cursor-pointer group h-80 flex flex-col"
                     onClick={() => window.location.href = '/documents'}
                 >
                     {/* Animated Background Mesh */}
-                    <div className="absolute inset-0 opacity-30 mix-blend-overlay">
+                    < div className="absolute inset-0 opacity-30 mix-blend-overlay" >
                         <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] animate-spin-slow bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
-                    </div>
+                    </div >
 
                     <div className="relative z-10 flex-1 flex flex-col">
                         <div className="flex items-center gap-3 mb-6">
@@ -304,18 +342,18 @@ const Dashboard = () => {
                             </div>
                         </div>
                     </div>
-                </motion.div>
-            </motion.div>
+                </motion.div >
+            </motion.div >
 
             {/* Bottom Row: Table */}
-            <motion.div
+            < motion.div
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
                 className="card p-8 bg-white/90 backdrop-blur-sm shadow-lg border border-gray-100"
             >
                 {/* ... (keep header) */}
-                <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+                < div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4" >
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
                             <Clock size={24} />
@@ -334,7 +372,7 @@ const Dashboard = () => {
                             Refresh
                         </button>
                     </div>
-                </div>
+                </div >
 
                 <div className="overflow-x-auto">
                     <table className="w-full">
@@ -418,8 +456,8 @@ const Dashboard = () => {
                         </tbody>
                     </table>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 

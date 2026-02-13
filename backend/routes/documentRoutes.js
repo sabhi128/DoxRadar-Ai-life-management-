@@ -9,18 +9,8 @@ const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const path = require('path');
 
-// Configure Multer Storage
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        cb(
-            null,
-            file.fieldname + '-' + Date.now() + path.extname(file.originalname)
-        );
-    },
-});
+// Configure Multer Storage (Memory for Supabase Upload)
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,

@@ -1,11 +1,13 @@
 const asyncHandler = require('express-async-handler');
-const Subscription = require('../models/Subscription');
+const prisma = require('../prismaClient');
 
 // @desc    Get subscriptions
 // @route   GET /api/subscriptions
 // @access  Private
 const getSubscriptions = asyncHandler(async (req, res) => {
-    const subscriptions = await Subscription.find({ user: req.user.id });
+    const subscriptions = await prisma.subscription.findMany({
+        where: { userId: req.user.id },
+    });
     res.status(200).json(subscriptions);
 });
 
@@ -18,14 +20,18 @@ const setSubscription = asyncHandler(async (req, res) => {
         throw new Error('Please add a name and price');
     }
 
-    const subscription = await Subscription.create({
-        user: req.user.id,
-        name: req.body.name,
-        price: req.body.price,
-        billingCycle: req.body.billingCycle,
-        nextBillingDate: req.body.nextBillingDate,
-        category: req.body.category,
-        paymentMethod: req.body.paymentMethod,
+    const subscription = await prisma.subscription.create({
+        data: {
+            userId: req.user.id,
+            name: req.body.name,
+            price: parseFloat(req.body.price),
+            currency: req.body.currency || 'USD',
+            period: req.body.period || 'Monthly',
+            category: req.body.category || 'General',
+            startDate: new Date(req.body.startDate || Date.now()),
+            nextPayment: new Date(req.body.nextPayment || Date.now()),
+            paymentMethod: req.body.paymentMethod,
+        },
     });
 
     res.status(201).json(subscription);
@@ -35,7 +41,9 @@ const setSubscription = asyncHandler(async (req, res) => {
 // @route   PUT /api/subscriptions/:id
 // @access  Private
 const updateSubscription = asyncHandler(async (req, res) => {
-    const subscription = await Subscription.findById(req.params.id);
+    const subscription = await prisma.subscription.findUnique({
+        where: { id: req.params.id },
+    });
 
     if (!subscription) {
         res.status(404);
@@ -47,16 +55,18 @@ const updateSubscription = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    if (subscription.user.toString() !== req.user.id) {
+    if (subscription.userId !== req.user.id) {
         res.status(401);
         throw new Error('User not authorized');
     }
 
-    const updatedSubscription = await Subscription.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        { new: true }
-    );
+    const updatedSubscription = await prisma.subscription.update({
+        where: { id: req.params.id },
+        data: {
+            ...req.body,
+            price: req.body.price ? parseFloat(req.body.price) : undefined,
+        },
+    });
 
     res.status(200).json(updatedSubscription);
 });
@@ -65,7 +75,9 @@ const updateSubscription = asyncHandler(async (req, res) => {
 // @route   DELETE /api/subscriptions/:id
 // @access  Private
 const deleteSubscription = asyncHandler(async (req, res) => {
-    const subscription = await Subscription.findById(req.params.id);
+    const subscription = await prisma.subscription.findUnique({
+        where: { id: req.params.id },
+    });
 
     if (!subscription) {
         res.status(404);
@@ -77,12 +89,14 @@ const deleteSubscription = asyncHandler(async (req, res) => {
         throw new Error('User not found');
     }
 
-    if (subscription.user.toString() !== req.user.id) {
+    if (subscription.userId !== req.user.id) {
         res.status(401);
         throw new Error('User not authorized');
     }
 
-    await subscription.deleteOne();
+    await prisma.subscription.delete({
+        where: { id: req.params.id },
+    });
 
     res.status(200).json({ id: req.params.id });
 });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
 import { motion } from 'framer-motion';
 import Logo from '../assets/Logo.jpeg';
@@ -12,6 +12,7 @@ const Login = () => {
     });
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { signIn } = useAuth();
 
     const { email, password } = formData;
 
@@ -25,61 +26,16 @@ const Login = () => {
     const onSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/api/auth/login', formData);
-            if (response.data) {
-                localStorage.setItem('user', JSON.stringify(response.data));
-                navigate('/dashboard');
-            }
+            const { error } = await signIn({ email, password });
+            if (error) throw error;
+            navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.message || 'Login failed');
-        }
-    };
-
-    // Animation Variants
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1,
-                delayChildren: 0.2
-            }
-        }
-    };
-
-    const itemVariants = {
-        hidden: { y: 20, opacity: 0 },
-        visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 100 } }
-    };
-
-    const floatingShapeVariants = {
-        animate: {
-            y: [0, -20, 0],
-            rotate: [0, 5, -5, 0],
-            transition: {
-                duration: 5,
-                repeat: Infinity,
-                ease: "easeInOut"
-            }
+            setError(err.message || 'Login failed');
         }
     };
 
     return (
         <div className="flex h-screen w-full bg-white overflow-hidden relative">
-            {/* Background Texture/Particles */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                <motion.div
-                    variants={floatingShapeVariants}
-                    animate="animate"
-                    className="absolute top-10 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl"
-                />
-                <motion.div
-                    variants={floatingShapeVariants}
-                    animate="animate"
-                    className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/5 rounded-full blur-3xl delay-1000"
-                />
-            </div>
-
             {/* Left Side - Form */}
             <motion.div
                 initial={{ opacity: 0, x: -50 }}
@@ -87,164 +43,138 @@ const Login = () => {
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 className="flex flex-col justify-center w-full md:w-1/2 p-8 md:p-12 relative z-10"
             >
-                <motion.div
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="visible"
-                    className="w-full max-w-md mx-auto"
-                >
-                    <motion.div variants={itemVariants} className="flex items-center gap-3 mb-10">
-                        <motion.img
-                            whileHover={{ rotate: 5, scale: 1.1 }}
+                <div className="w-full max-w-md mx-auto">
+                    {/* Logo Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center gap-3 mb-10"
+                    >
+                        <img
                             src={Logo}
                             alt="Logo"
-                            className="h-10 w-auto rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                            className="h-10 w-auto rounded-lg shadow-md"
                         />
-                        <h1 className="text-2xl font-bold text-text-main tracking-tight">DoxRadar</h1>
+                        <span className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                            DoxRadar
+                        </span>
                     </motion.div>
 
-                    <motion.div variants={itemVariants}>
-                        <h2 className="text-3xl font-bold mb-2 text-text-main">Welcome back</h2>
-                        <p className="text-text-muted mb-8 text-lg">Enter your credentials to access your LifeOS.</p>
+                    {/* Headline */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="mb-8"
+                    >
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+                        <p className="text-gray-500">Sign in to access your DoxRadar dashboard.</p>
                     </motion.div>
 
                     {error && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
-                            className="p-4 mb-6 bg-red-50 border border-red-100 text-danger rounded-lg text-sm flex items-center gap-2 overflow-hidden"
+                            className="p-4 mb-6 text-sm text-red-600 bg-red-50 rounded-xl border border-red-200 flex items-center gap-2"
                         >
-                            <span className="w-2 h-2 rounded-full bg-danger inline-block"></span>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
                             {error}
                         </motion.div>
                     )}
 
-                    <form onSubmit={onSubmit} className="space-y-5">
-                        <motion.div variants={itemVariants}>
-                            <Input
-                                label="Email"
-                                type="email"
-                                name="email"
-                                value={email}
-                                onChange={onChange}
-                                placeholder="name@example.com"
-                            />
-                        </motion.div>
-                        <motion.div variants={itemVariants}>
-                            <Input
-                                label="Password"
-                                type="password"
-                                name="password"
-                                value={password}
-                                onChange={onChange}
-                                placeholder="••••••••"
-                            />
-                        </motion.div>
+                    <form onSubmit={onSubmit} className="space-y-6">
+                        <Input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value={email}
+                            onChange={onChange}
+                            label="Email"
+                            placeholder="name@company.com"
+                            required
+                        />
+                        <Input
+                            type="password"
+                            id="password"
+                            name="password"
+                            value={password}
+                            onChange={onChange}
+                            label="Password"
+                            placeholder="••••••••"
+                            required
+                        />
 
                         <motion.button
-                            variants={itemVariants}
-                            whileHover={{ scale: 1.02, boxShadow: "0 10px 15px -3px rgba(59, 130, 246, 0.3)" }}
+                            whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             type="submit"
-                            className="btn btn-primary w-full mt-2 py-3"
+                            className="w-full py-3.5 px-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 focus:ring-4 focus:ring-primary/20 transition-all shadow-lg hover:shadow-primary/30 flex items-center justify-center gap-2"
                         >
                             Sign In
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
                         </motion.button>
                     </form>
 
-                    <motion.p variants={itemVariants} className="text-center text-text-muted text-sm mt-8">
-                        Don't have an account?{' '}
-                        <Link to="/register" className="text-primary hover:text-primary-dark font-semibold hover:underline relative group">
-                            Create account
-                            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full"></span>
-                        </Link>
-                    </motion.p>
-                </motion.div>
+                    <div className="mt-8 text-center">
+                        <p className="text-gray-500">
+                            Don’t have an account?{' '}
+                            <Link to="/register" className="text-primary font-semibold hover:underline">
+                                Create one
+                            </Link>
+                        </p>
+                    </div>
+                </div>
             </motion.div>
 
-            {/* Right Side - Visual */}
-            <div className="hidden md:flex w-1/2 relative bg-bg-gray items-center justify-center p-12 overflow-hidden">
-                {/* Decorative Elements */}
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 100, repeat: Infinity, ease: "linear" }}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] border-2 border-dashed border-gray-200 rounded-full opacity-30"
-                />
+            {/* Right Side - Marketing */}
+            <motion.div
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
+                className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-900 to-indigo-900 text-white relative flex-col justify-center items-center p-12 overflow-hidden"
+            >
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+                </div>
 
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="relative z-10 max-w-lg text-center"
-                >
-                    <h2 className="text-4xl font-bold mb-6 text-text-main">
-                        Simplifying Life's <span className="text-primary relative inline-block">
-                            Complexities
-                            <motion.svg
-                                className="absolute -bottom-2 left-0 w-full"
-                                viewBox="0 0 100 10"
-                                preserveAspectRatio="none"
-                            >
-                                <motion.path
-                                    d="M0 5 Q 50 10 100 5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    initial={{ pathLength: 0 }}
-                                    animate={{ pathLength: 1 }}
-                                    transition={{ duration: 1, delay: 1 }}
-                                />
-                            </motion.svg>
-                        </span>
+                {/* Content */}
+                <div className="relative z-10 max-w-lg text-left">
+                    <h2 className="text-4xl lg:text-5xl font-extrabold leading-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-blue-200">
+                        Your AI That Fixes Financial and Administrative Problems.
                     </h2>
-                    <p className="text-text-muted text-lg leading-relaxed mb-8">
-                        Manage documents, renewals, and subscriptions in one secure place.
+                    <p className="text-lg text-blue-100/90 leading-relaxed mb-12 font-medium">
+                        We monitor, detect, and resolve billing issues, subscriptions, renewals, provider negotiations, and disputes - automatically.
                     </p>
 
-                    {/* Floating Card Animation */}
-                    <motion.div
-                        initial={{ y: 20 }}
-                        animate={{ y: -10 }}
-                        transition={{ duration: 3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-                        className="bg-white p-6 rounded-2xl shadow-xl border border-border-light/50 transform rotate-[-2deg] max-w-sm mx-auto"
-                    >
-                        <div className="flex items-center gap-4 mb-4">
-                            <motion.div
-                                animate={{ scale: [1, 1.1, 1] }}
-                                transition={{ repeat: Infinity, duration: 2 }}
-                                className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></svg>
-                            </motion.div>
-                            <div className="text-left">
-                                <p className="font-bold text-text-main text-lg">System Active</p>
-                                <div className="flex items-center gap-2">
-                                    <span className="relative flex h-2.5 w-2.5">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                                    </span>
-                                    <p className="text-xs text-text-muted font-medium">Monitoring Real-time</p>
-                                </div>
-                            </div>
+                    {/* Security Status Box */}
+                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6">
+                        <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-4">
+                            <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                            <span className="text-sm font-bold tracking-wider uppercase text-emerald-300">System Active</span>
                         </div>
-
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between text-xs text-text-muted">
-                                <span>Encryption</span>
-                                <span className="text-green-600 font-bold">256-bit</span>
+                            <div className="flex items-center gap-3 text-sm text-blue-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Real-Time Monitoring Enabled
                             </div>
-                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: '100%' }}
-                                    transition={{ duration: 1.5, delay: 0.5 }}
-                                    className="h-full bg-green-500 rounded-full"
-                                />
+                            <div className="flex items-center gap-3 text-sm text-blue-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-300" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                256‑Bit Encrypted Infrastructure
                             </div>
                         </div>
-                    </motion.div>
-                </motion.div>
-            </div>
+                    </div>
+                </div>
+            </motion.div>
         </div>
     );
 };
