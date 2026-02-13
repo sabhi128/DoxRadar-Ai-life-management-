@@ -59,7 +59,7 @@ const Documents = () => {
         try {
             await api.delete(`/documents/${id}`);
             toast.success('Document deleted', { id: toastId });
-            setDocuments(documents.filter(doc => doc._id !== id));
+            setDocuments(documents.filter(doc => doc.id !== id));
         } catch (error) {
             toast.error('Delete failed', { id: toastId });
         }
@@ -92,6 +92,7 @@ const Documents = () => {
 
     const getFileUrl = (filePath) => {
         if (!filePath) return '';
+        if (filePath.startsWith('http')) return filePath;
         // Replace backslashes with forward slashes for URL
         const normalizedPath = filePath.replace(/\\/g, '/');
         return `/${normalizedPath}`;
@@ -107,18 +108,31 @@ const Documents = () => {
             const toastId = toast.loading('Starting download...');
             const url = getFileUrl(doc.path);
 
-            const response = await api.get(url, {
-                responseType: 'blob'
-            });
-
-            const blob = new Blob([response.data], { type: response.headers['content-type'] });
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = doc.name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(link.href);
+            // If it's a remote URL (Supabase), fetch directly without API instance to avoid base URL prefix
+            let response;
+            if (url.startsWith('http')) {
+                response = await fetch(url);
+                if (!response.ok) throw new Error('Download failed');
+                const blob = await response.blob();
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = doc.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(link.href);
+            } else {
+                // Local file (unlikely now, but for backward compat)
+                response = await api.get(url, { responseType: 'blob' });
+                const blob = new Blob([response.data], { type: response.headers['content-type'] });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = doc.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(link.href);
+            }
 
             toast.success('Download started', { id: toastId });
         } catch (error) {
@@ -174,7 +188,7 @@ const Documents = () => {
             </div>
 
             {/* AI Insights Modal */}
-            {activeMenu && documents.find(d => d._id === activeMenu)?.analysis && (
+            {activeMenu && documents.find(d => d.id === activeMenu)?.analysis && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -187,7 +201,7 @@ const Documents = () => {
                                     <FileText size={20} />
                                     Document Intelligence
                                 </h2>
-                                <p className="text-blue-100 text-sm">AI Analysis for {documents.find(d => d._id === activeMenu)?.name}</p>
+                                <p className="text-blue-100 text-sm">AI Analysis for {documents.find(d => d.id === activeMenu)?.name}</p>
                             </div>
                             <button
                                 onClick={() => setActiveMenu(null)}
@@ -205,7 +219,7 @@ const Documents = () => {
                                     Executive Summary
                                 </h3>
                                 <p className="text-blue-900/80 text-sm leading-relaxed">
-                                    {documents.find(d => d._id === activeMenu)?.analysis?.summary || "Analysis pending..."}
+                                    {documents.find(d => d.id === activeMenu)?.analysis?.summary || "Analysis pending..."}
                                 </p>
                             </div>
 
@@ -219,16 +233,16 @@ const Documents = () => {
                                     <div className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
                                         <span className="text-sm text-text-muted">Expiry Date</span>
                                         <span className="font-medium text-text-main">
-                                            {documents.find(d => d._id === activeMenu)?.analysis?.expiryDate
-                                                ? new Date(documents.find(d => d._id === activeMenu).analysis.expiryDate).toLocaleDateString()
+                                            {documents.find(d => d.id === activeMenu)?.analysis?.expiryDate
+                                                ? new Date(documents.find(d => d.id === activeMenu).analysis.expiryDate).toLocaleDateString()
                                                 : 'N/A'}
                                         </span>
                                     </div>
                                     <div className="bg-gray-50 p-3 rounded-lg flex justify-between items-center">
                                         <span className="text-sm text-text-muted">Renewal Date</span>
                                         <span className="font-medium text-text-main">
-                                            {documents.find(d => d._id === activeMenu)?.analysis?.renewalDate
-                                                ? new Date(documents.find(d => d._id === activeMenu).analysis.renewalDate).toLocaleDateString()
+                                            {documents.find(d => d.id === activeMenu)?.analysis?.renewalDate
+                                                ? new Date(documents.find(d => d.id === activeMenu).analysis.renewalDate).toLocaleDateString()
                                                 : 'N/A'}
                                         </span>
                                     </div>
@@ -241,7 +255,7 @@ const Documents = () => {
                                         Smart Tags
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
-                                        {documents.find(d => d._id === activeMenu)?.analysis?.tags?.map((tag, i) => (
+                                        {documents.find(d => d.id === activeMenu)?.analysis?.tags?.map((tag, i) => (
                                             <span key={i} className="px-3 py-1 bg-gray-100 text-text-muted rounded-full text-xs font-medium border border-gray-200">
                                                 {tag}
                                             </span>
@@ -257,7 +271,7 @@ const Documents = () => {
                                     Risk & Obligations
                                 </h3>
                                 <ul className="space-y-2">
-                                    {documents.find(d => d._id === activeMenu)?.analysis?.risks?.map((risk, i) => (
+                                    {documents.find(d => d.id === activeMenu)?.analysis?.risks?.map((risk, i) => (
                                         <li key={i} className="flex items-start gap-3 bg-red-50 p-3 rounded-lg border border-red-100/50">
                                             <div className="mt-0.5 min-w-[6px] h-[6px] rounded-full bg-red-500"></div>
                                             <span className="text-sm text-red-800">{risk}</span>
@@ -292,7 +306,7 @@ const Documents = () => {
                 >
                     {documents.filter(doc => doc.name.toLowerCase().includes(searchTerm.toLowerCase())).map((doc) => (
                         <motion.div
-                            key={doc._id}
+                            key={doc.id}
                             variants={itemVariants}
                             whileHover={{ y: -5 }}
                             className="group card p-5 hover:shadow-lg transition-all duration-300 relative overflow-visible border border-border-light/50"
@@ -308,13 +322,13 @@ const Documents = () => {
 
                             <div className="document-menu-container absolute top-4 right-4 z-20">
                                 <button
-                                    onClick={(e) => toggleMenu(e, doc._id)}
+                                    onClick={(e) => toggleMenu(e, doc.id)}
                                     className="p-1.5 hover:bg-gray-100 rounded-lg text-text-muted hover:text-text-main transition-colors"
                                 >
                                     <MoreVertical size={16} />
                                 </button>
 
-                                {activeMenu === doc._id && (
+                                {activeMenu === doc.id && (
                                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-30">
                                         <button
                                             onClick={() => handleView(doc)}
@@ -330,7 +344,7 @@ const Documents = () => {
                                         </button>
                                         <div className="h-px bg-gray-100 my-1"></div>
                                         <button
-                                            onClick={(e) => handleDeleteClick(e, doc._id)}
+                                            onClick={(e) => handleDeleteClick(e, doc.id)}
                                             className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                                         >
                                             <Trash2 size={14} /> Delete
@@ -361,7 +375,7 @@ const Documents = () => {
                             <div className="flex items-center justify-between mt-auto pt-4 border-t border-border-light/50">
                                 {doc.analysis ? (
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setActiveMenu(doc._id); }}
+                                        onClick={(e) => { e.stopPropagation(); setActiveMenu(doc.id); }}
                                         className="text-xs font-medium text-primary hover:text-primary-dark flex items-center gap-1 transition-colors"
                                     >
                                         <Sparkles size={14} /> View Insights
@@ -388,7 +402,7 @@ const Documents = () => {
                                         <Download size={16} />
                                     </button>
                                     <button
-                                        onClick={(e) => handleDeleteClick(e, doc._id)}
+                                        onClick={(e) => handleDeleteClick(e, doc.id)}
                                         className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded transition-colors"
                                         title="Delete"
                                     >
