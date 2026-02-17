@@ -16,8 +16,8 @@ const getMimeType = (filePath) => {
 const analyzeDocument = async (fileBuffer, mimeType) => {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // Updated model to one confirmed in the user's list
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+        // Use standard 1.5-flash model for better stability
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const base64Data = fileBuffer.toString("base64");
 
@@ -60,7 +60,8 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         }
         return {
             status: 'Failed',
-            summary: "AI Analysis failed to process this document.",
+            // Return actual error message to UI for debugging
+            summary: `AI Analysis failed: ${error.message || "Unknown error"}`,
             risks: [],
             tags: []
         };
