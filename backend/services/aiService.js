@@ -17,7 +17,8 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         // Use standard 1.5-flash model for better stability
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Adding -001 to resolve 404 error
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
 
         const base64Data = fileBuffer.toString("base64");
 
