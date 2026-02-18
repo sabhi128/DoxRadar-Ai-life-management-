@@ -69,24 +69,20 @@ const uploadDocument = asyncHandler(async (req, res) => {
                 // Process Analysis with Buffer directly
                 const analysis = await analyzeDocument(req.file.buffer, req.file.mimetype);
 
-                // Only update if analysis succeeded
-                if (analysis.status === 'Completed') {
-                    await prisma.document.update({
-                        where: { id: doc.id },
-                        data: { analysis },
-                    });
+                // Always save analysis (even if failed) so View Insights shows
+                await prisma.document.update({
+                    where: { id: doc.id },
+                    data: { analysis },
+                });
 
-                    const updatedDoc = await prisma.document.findUnique({ where: { id: doc.id } });
-                    return res.status(201).json(updatedDoc);
-                } else {
-                    console.warn('AI Analysis failed, returning document without analysis');
-                }
+                const updatedDoc = await prisma.document.findUnique({ where: { id: doc.id } });
+                return res.status(201).json(updatedDoc);
             } catch (error) {
                 console.error("AI Analysis Failed:", error.message);
             }
         }
 
-        // Return document without analysis if AI is disabled or failed
+        // Return document without analysis if AI is disabled or crashed
         res.status(201).json(doc);
     } else {
         res.status(400);
