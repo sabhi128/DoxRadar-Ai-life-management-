@@ -1,8 +1,7 @@
 {
     "private": true,
     "scripts": {
-        "postinstall": "npx -y prisma generate --schema=backend/prisma/schema.prisma",
-        "build": "cd frontend && npm install && npx vite build"
+        "build": "prisma generate --schema=backend/prisma/schema.prisma && cd frontend && npm install && npx vite build"
     },
     "engines": {
         "node": "22.x"
