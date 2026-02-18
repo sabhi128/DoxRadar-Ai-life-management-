@@ -61,23 +61,33 @@ const uploadDocument = asyncHandler(async (req, res) => {
     });
 
     if (doc) {
-        try {
-            // Process Analysis with Buffer directly
-            const analysis = await analyzeDocument(req.file.buffer, req.file.mimetype);
+        // Only attempt AI analysis if explicitly enabled
+        const enableAI = process.env.ENABLE_AI_ANALYSIS !== 'false';
 
-            // Update document with analysis
-            await prisma.document.update({
-                where: { id: doc.id },
-                data: { analysis },
-            });
+        if (enableAI) {
+            try {
+                // Process Analysis with Buffer directly
+                const analysis = await analyzeDocument(req.file.buffer, req.file.mimetype);
 
-            // Return updated doc
-            const updatedDoc = await prisma.document.findUnique({ where: { id: doc.id } });
-            res.status(201).json(updatedDoc);
-        } catch (error) {
-            console.error("AI Analysis Failed:", error);
-            res.status(201).json(doc);
+                // Only update if analysis succeeded
+                if (analysis.status === 'Completed') {
+                    await prisma.document.update({
+                        where: { id: doc.id },
+                        data: { analysis },
+                    });
+
+                    const updatedDoc = await prisma.document.findUnique({ where: { id: doc.id } });
+                    return res.status(201).json(updatedDoc);
+                } else {
+                    console.warn('AI Analysis failed, returning document without analysis');
+                }
+            } catch (error) {
+                console.error("AI Analysis Failed:", error.message);
+            }
         }
+
+        // Return document without analysis if AI is disabled or failed
+        res.status(201).json(doc);
     } else {
         res.status(400);
         throw new Error('Invalid document data');
