@@ -73,7 +73,7 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
                 'X-Title': 'DoxRadar AI Life Manager'
             },
             body: JSON.stringify({
-                model: 'meta-llama/llama-3.1-8b-instruct:free',
+                model: 'meta-llama/llama-3.3-70b-instruct:free',
                 messages: [
                     {
                         role: 'system',
