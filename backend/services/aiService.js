@@ -14,8 +14,14 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         let documentText = '';
 
         if (mimeType === 'application/pdf') {
-            const pdfData = await pdfParse(fileBuffer);
-            documentText = pdfData.text;
+            try {
+                const pdfData = await pdfParse(fileBuffer);
+                documentText = pdfData.text || '';
+                console.log(`PDF text extracted: ${documentText.length} chars`);
+            } catch (pdfErr) {
+                console.error("PDF parse error:", pdfErr.message);
+                documentText = '';
+            }
         } else if (mimeType?.startsWith('image/')) {
             return {
                 status: 'Skipped',
@@ -27,10 +33,22 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
             documentText = fileBuffer.toString('utf-8');
         }
 
-        if (!documentText || documentText.trim().length < 10) {
+        // If PDF extraction failed or got minimal text, try raw buffer as text
+        if (documentText.trim().length < 50) {
+            console.log("PDF text extraction got minimal text, trying raw buffer...");
+            const rawText = fileBuffer.toString('utf-8');
+            // Extract readable text from raw buffer (filter out binary garbage)
+            const readable = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, ' ').trim();
+            if (readable.length > documentText.trim().length) {
+                documentText = readable;
+                console.log(`Raw extraction got: ${documentText.length} chars`);
+            }
+        }
+
+        if (!documentText || documentText.trim().length < 20) {
             return {
                 status: 'Skipped',
-                summary: "Could not extract meaningful text from this document.",
+                summary: "Could not extract enough text from this document for analysis.",
                 risks: [],
                 tags: []
             };
@@ -39,7 +57,11 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         // Truncate to save tokens (first 3000 chars)
         const truncatedText = documentText.substring(0, 3000);
 
-        console.log(`Attempting AI analysis with OpenRouter (${truncatedText.length} chars)`);
+        console.log(`Sending ${truncatedText.length} chars to OpenRouter for analysis...`);
+
+        // Add 30 second timeout
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000);
 
         const response = await fetch(OPENROUTER_API_URL, {
             method: 'POST',
@@ -67,8 +89,11 @@ ${truncatedText}`
                 ],
                 temperature: 0.3,
                 max_tokens: 500
-            })
+            }),
+            signal: controller.signal
         });
+
+        clearTimeout(timeout);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -82,6 +107,8 @@ ${truncatedText}`
         }
 
         const data = await response.json();
+        console.log("OpenRouter raw response:", JSON.stringify(data).substring(0, 300));
+
         let text = data.choices?.[0]?.message?.content;
 
         if (!text) {
@@ -92,14 +119,17 @@ ${truncatedText}`
         text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
         const parsed = JSON.parse(text);
-        console.log("AI Analysis completed successfully with OpenRouter!");
+        console.log("AI Analysis completed successfully!");
         return { ...parsed, status: 'Completed' };
 
     } catch (error) {
-        console.error("OpenRouter Analysis Failed:", error.message);
+        const msg = error.name === 'AbortError'
+            ? 'AI request timed out after 30 seconds'
+            : error.message;
+        console.error("OpenRouter Analysis Failed:", msg);
         return {
             status: 'Failed',
-            summary: `AI Analysis failed: ${error.message}`,
+            summary: `AI Analysis failed: ${msg}`,
             risks: [],
             tags: []
         };
