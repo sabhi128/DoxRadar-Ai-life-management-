@@ -1,7 +1,7 @@
 {
     "private": true,
     "scripts": {
-        "postinstall": "npx prisma generate --schema=backend/prisma/schema.prisma",
+        "postinstall": "npx -y prisma generate --schema=backend/prisma/schema.prisma",
         "build": "cd frontend && npm install && npx vite build"
     },
     "engines": {
@@ -16,7 +16,6 @@
         "vite": "^5.2.0"
     },
     "dependencies": {
-        "@openrouter/sdk": "^0.8.0",
         "@prisma/client": "^5.22.0"
     }
 }
