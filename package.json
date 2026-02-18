@@ -1,7 +1,7 @@
 {
     "private": true,
     "scripts": {
-        "build": "prisma generate --schema=backend/prisma/schema.prisma && cd frontend && npm install && npx vite build"
+        "build": "node node_modules/prisma/build/index.js generate --schema=backend/prisma/schema.prisma && cd frontend && npm install && npx vite build"
     },
     "engines": {
         "node": "22.x"
