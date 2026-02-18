@@ -4,6 +4,7 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const analyzeDocument = async (fileBuffer, mimeType) => {
     const apiKey = process.env.OPENROUTER_API_KEY;
+    console.log(`OpenRouter API key present: ${!!apiKey}, prefix: ${apiKey ? apiKey.substring(0, 15) + '...' : 'NONE'}, length: ${apiKey?.length || 0}`);
     if (!apiKey) {
         console.error("OPENROUTER_API_KEY not set");
         return { status: 'Failed', summary: "AI not configured.", risks: [], tags: [] };
@@ -72,7 +73,7 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
                 'X-Title': 'DoxRadar AI Life Manager'
             },
             body: JSON.stringify({
-                model: 'deepseek/deepseek-chat-v3-0324:free',
+                model: 'meta-llama/llama-3.1-8b-instruct:free',
                 messages: [
                     {
                         role: 'system',
