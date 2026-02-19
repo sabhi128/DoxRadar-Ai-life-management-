@@ -16,10 +16,11 @@ const Documents = () => {
     const fetchDocuments = async () => {
         try {
             const res = await api.get('/documents');
-            setDocuments(res.data);
+            setDocuments(Array.isArray(res.data) ? res.data : []);
             setLoading(false);
         } catch (error) {
             toast.error('Failed to load documents');
+            setDocuments([]);
             setLoading(false);
         }
     };
