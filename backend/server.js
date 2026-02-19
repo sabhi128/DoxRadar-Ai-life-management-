@@ -29,20 +29,6 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
-// TEMPORARY: Debug endpoint to check env vars on Vercel (remove after debugging)
-app.get('/api/debug-env', (req, res) => {
-    res.json({
-        OPENROUTER_API_KEY_SET: !!process.env.OPENROUTER_API_KEY,
-        OPENROUTER_API_KEY_LENGTH: process.env.OPENROUTER_API_KEY?.length || 0,
-        ENABLE_AI_ANALYSIS: process.env.ENABLE_AI_ANALYSIS,
-        NODE_ENV: process.env.NODE_ENV,
-        SUPABASE_URL_SET: !!process.env.SUPABASE_URL,
-        ALL_ENV_KEYS_WITH_OPEN: Object.keys(process.env).filter(k => k.toUpperCase().includes('OPEN')),
-        ALL_ENV_KEYS_WITH_AI: Object.keys(process.env).filter(k => k.toUpperCase().includes('AI')),
-        ALL_ENV_KEYS_WITH_ROUTER: Object.keys(process.env).filter(k => k.toUpperCase().includes('ROUTER')),
-    });
-});
-
 // Import Routes
 const authRoutes = require('./routes/authRoutes');
 const documentRoutes = require('./routes/documentRoutes');
