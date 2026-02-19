@@ -8,10 +8,13 @@ const VALID_CATEGORIES = [
     'Medical', 'Financial', 'Personal', 'Certificate', 'Other'
 ];
 
+// Log API key status at module load (helps debug Vercel env issues)
+console.log(`[aiService] OPENROUTER_API_KEY loaded: ${!!process.env.OPENROUTER_API_KEY} (length: ${process.env.OPENROUTER_API_KEY?.length || 0})`);
+
 const analyzeDocument = async (fileBuffer, mimeType) => {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-        console.error("OPENROUTER_API_KEY not set");
+        console.error("OPENROUTER_API_KEY not set. Available env keys:", Object.keys(process.env).filter(k => k.includes('OPEN') || k.includes('AI')).join(', '));
         return { status: 'Failed', summary: "AI not configured.", risks: [], tags: [] };
     }
 
@@ -107,37 +110,55 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
             console.log(`Sending ${truncatedText.length} chars to OpenRouter...`);
         }
 
-        // --- API CALL ---
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
+        // --- API CALL (with retry for free-tier intermittent failures) ---
+        const MAX_RETRIES = 2;
+        let response;
 
-        const response = await fetch(OPENROUTER_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://doxradar.app',
-                'X-Title': 'DoxRadar AI Life Manager'
-            },
-            body: JSON.stringify({
-                model,
-                messages,
-                temperature: 0.3,
-                max_tokens: 1500
-            }),
-            signal: controller.signal
-        });
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 45000);
 
-        clearTimeout(timeout);
+            try {
+                response = await fetch(OPENROUTER_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': 'https://doxradar.app',
+                        'X-Title': 'DoxRadar AI Life Manager'
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages,
+                        temperature: 0.3,
+                        max_tokens: 1500
+                    }),
+                    signal: controller.signal
+                });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`OpenRouter API Error (${response.status}):`, errorText);
-            return {
-                status: 'Failed',
-                summary: `AI Analysis failed (${response.status}): ${errorText.substring(0, 150)}`,
-                risks: [], tags: [], suggestedCategory: 'Other'
-            };
+                clearTimeout(timeout);
+
+                if (response.ok) break; // Success, exit retry loop
+
+                const errorText = await response.text();
+                console.warn(`OpenRouter attempt ${attempt + 1} failed (${response.status}):`, errorText.substring(0, 200));
+
+                if (attempt === MAX_RETRIES) {
+                    return {
+                        status: 'Failed',
+                        summary: `AI Analysis failed after ${MAX_RETRIES + 1} attempts (${response.status}): ${errorText.substring(0, 150)}`,
+                        risks: [], tags: [], suggestedCategory: 'Other'
+                    };
+                }
+
+                // Wait before retry
+                await new Promise(r => setTimeout(r, 2000));
+            } catch (fetchErr) {
+                clearTimeout(timeout);
+                if (attempt === MAX_RETRIES) throw fetchErr;
+                console.warn(`OpenRouter attempt ${attempt + 1} error:`, fetchErr.message);
+                await new Promise(r => setTimeout(r, 2000));
+            }
         }
 
         const data = await response.json();
