@@ -62,12 +62,23 @@ const Subscriptions = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const toastId = toast.loading(isEditMode ? 'Updating subscription...' : 'Adding subscription...');
+
+        // Map frontend field names to backend schema field names
+        const payload = {
+            name: formData.name,
+            price: formData.price,
+            period: formData.billingCycle,        // schema: period
+            category: formData.category,
+            nextPayment: formData.nextBillingDate, // schema: nextPayment
+            paymentMethod: formData.paymentMethod,
+        };
+
         try {
             if (isEditMode) {
-                await api.put(`/subscriptions/${currentId}`, formData);
+                await api.put(`/subscriptions/${currentId}`, payload);
                 toast.success('Subscription updated!', { id: toastId });
             } else {
-                await api.post('/subscriptions', formData);
+                await api.post('/subscriptions', payload);
                 toast.success('Subscription added!', { id: toastId });
             }
             fetchSubscriptions();
@@ -81,8 +92,8 @@ const Subscriptions = () => {
         setFormData({
             name: sub.name,
             price: sub.price,
-            billingCycle: sub.billingCycle,
-            nextBillingDate: sub.nextBillingDate ? sub.nextBillingDate.toString().split('T')[0] : '',
+            billingCycle: sub.period || sub.billingCycle || 'Monthly',
+            nextBillingDate: (sub.nextPayment || sub.nextBillingDate || '').toString().split('T')[0],
             category: sub.category,
             paymentMethod: sub.paymentMethod || 'Credit Card'
         });
@@ -109,7 +120,7 @@ const Subscriptions = () => {
 
     const totalMonthlyCost = subscriptions.reduce((acc, sub) => {
         const price = parseFloat(sub.price);
-        return sub.billingCycle === 'Monthly' ? acc + price : acc + (price / 12);
+        return (sub.period || sub.billingCycle) === 'Monthly' ? acc + price : acc + (price / 12);
     }, 0);
 
     const filteredSubscriptions = subscriptions.filter(sub =>
@@ -304,14 +315,14 @@ const Subscriptions = () => {
                                         <p className="text-sm text-text-muted">{sub.category}</p>
                                         <div className="mt-3 flex items-center gap-4">
                                             <span className="text-lg font-bold text-text-main">${sub.price}</span>
-                                            <span className="text-xs px-2 py-1 bg-gray-100 rounded text-text-muted font-medium">{sub.billingCycle}</span>
+                                            <span className="text-xs px-2 py-1 bg-gray-100 rounded text-text-muted font-medium">{sub.period || sub.billingCycle}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="mt-4 pt-4 border-t border-border-light flex items-center gap-2 text-xs text-text-muted">
                                     <Calendar size={14} />
-                                    <span>Next billing: {new Date(sub.nextBillingDate).toLocaleDateString()}</span>
+                                    <span>Next billing: {new Date(sub.nextPayment || sub.nextBillingDate).toLocaleDateString()}</span>
                                 </div>
                             </motion.div>
                         );
@@ -476,7 +487,7 @@ const Subscriptions = () => {
                                 <div className="text-right">
                                     <p className="text-sm text-text-muted">Billing Cycle</p>
                                     <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-semibold">
-                                        {previewSubscription.billingCycle}
+                                        {previewSubscription.period || previewSubscription.billingCycle}
                                     </span>
                                 </div>
                             </div>
@@ -489,7 +500,7 @@ const Subscriptions = () => {
                                     <div>
                                         <p className="text-xs text-text-muted">Next Billing Date</p>
                                         <p className="font-medium">
-                                            {new Date(previewSubscription.nextBillingDate).toLocaleDateString(undefined, {
+                                            {new Date(previewSubscription.nextPayment || previewSubscription.nextBillingDate).toLocaleDateString(undefined, {
                                                 weekday: 'long',
                                                 year: 'numeric',
                                                 month: 'long',
