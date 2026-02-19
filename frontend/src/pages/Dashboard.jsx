@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, TrendingUp, MoreVertical, Plus, Activity, CreditCard, AlertTriangle, FileWarning } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, MoreVertical, Plus, Activity, CreditCard, AlertTriangle, FileWarning, Lock, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -226,6 +226,110 @@ const Dashboard = () => {
                     </button>
                 </motion.div>
             )}
+
+            {/* Freemium Trend Preview */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.5 }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            >
+                {/* Expenses Card */}
+                <div className="card p-6 bg-white border border-gray-100 shadow-lg relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-red-50 text-red-500 rounded-xl">
+                                <TrendingDown size={20} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-500">Monthly Expenses</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-gray-900">
+                                        $<CountUp end={parseFloat(stats.totalMonthlyCost) || 0} duration={2} />
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
+                            <TrendingDown size={14} className="text-green-600" />
+                            <span className="text-sm font-bold text-green-700">↓ 3%</span>
+                            <span className="text-xs text-green-600/70">vs last month</span>
+                        </div>
+                    </div>
+
+                    {/* Locked Advanced Insights */}
+                    <div className="relative mt-4 pt-4 border-t border-gray-100">
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
+                                <Lock size={12} />
+                                Unlock with Pro
+                            </div>
+                        </div>
+                        <div className="space-y-2 opacity-50">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Top Category</span>
+                                <span className="font-medium">Entertainment - $45.00</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Savings Potential</span>
+                                <span className="font-medium text-green-600">$127/mo</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Spending Forecast</span>
+                                <span className="font-medium">$4,850 next month</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Revenue / Income Card */}
+                <div className="card p-6 bg-white border border-gray-100 shadow-lg relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-xl">
+                                <DollarSign size={20} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-500">Revenue Tracked</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-3xl font-black text-gray-900">
+                                        $<CountUp end={12450} duration={2.5} />
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-100">
+                            <TrendingUp size={14} className="text-emerald-600" />
+                            <span className="text-sm font-bold text-emerald-700">↑ 8%</span>
+                            <span className="text-xs text-emerald-600/70">vs last month</span>
+                        </div>
+                    </div>
+
+                    {/* Locked Advanced Insights */}
+                    <div className="relative mt-4 pt-4 border-t border-gray-100">
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
+                                <Lock size={12} />
+                                Unlock with Pro
+                            </div>
+                        </div>
+                        <div className="space-y-2 opacity-50">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Income Sources</span>
+                                <span className="font-medium">3 tracked</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Net Cash Flow</span>
+                                <span className="font-medium text-emerald-600">+$8,250/mo</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Financial Health</span>
+                                <span className="font-medium">Score: 82/100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
 
             {/* Top Row Widgets */}
             < motion.div
