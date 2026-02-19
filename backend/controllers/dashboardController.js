@@ -49,13 +49,58 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         orderBy: { createdAt: 'desc' }
     });
 
+    // --- Document Expiration Tracking ---
+    const allDocs = await prisma.document.findMany({
+        where: { userId: req.user.id },
+        select: { id: true, name: true, category: true, analysis: true }
+    });
+
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const expiringDocuments = [];
+    const expiredDocuments = [];
+
+    for (const doc of allDocs) {
+        const expiryStr = doc.analysis?.expiryDate;
+        if (expiryStr) {
+            const expiryDate = new Date(expiryStr);
+            if (!isNaN(expiryDate.getTime())) {
+                if (expiryDate < now) {
+                    expiredDocuments.push({
+                        id: doc.id,
+                        name: doc.name,
+                        category: doc.category,
+                        expiryDate: expiryStr,
+                        status: 'expired'
+                    });
+                } else if (expiryDate <= thirtyDaysFromNow) {
+                    const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                    expiringDocuments.push({
+                        id: doc.id,
+                        name: doc.name,
+                        category: doc.category,
+                        expiryDate: expiryStr,
+                        daysLeft,
+                        status: 'expiring'
+                    });
+                }
+            }
+        }
+    }
+
+    // Sort expiring by most urgent first
+    expiringDocuments.sort((a, b) => a.daysLeft - b.daysLeft);
+
     res.status(200).json({
         totalDocuments: totalDocs,
         totalMonthlyCost: totalMonthlyCost.toFixed(2),
         nextBill: nextBill ? { name: nextBill.name, amount: nextBill.price, date: nextBill.nextPayment } : null,
-        lifeAudit: latestAudit ? latestAudit.ratings : null, // Mapped 'scores' to 'ratings' based on schema
+        lifeAudit: latestAudit ? latestAudit.ratings : null,
         subscriptionCount: subscriptions.length,
-        spendChartData
+        spendChartData,
+        expiringDocuments,
+        expiredDocuments
     });
 });
 

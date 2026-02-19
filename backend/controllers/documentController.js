@@ -56,7 +56,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
             category: category || 'Uncategorized',
             type: fileExt.substring(1).toUpperCase() || 'FILE',
             size: formatBytes(req.file.size),
-            path: publicUrl, // Store Public URL
+            path: publicUrl,
         },
     });
 
@@ -69,10 +69,17 @@ const uploadDocument = asyncHandler(async (req, res) => {
                 // Process Analysis with Buffer directly
                 const analysis = await analyzeDocument(req.file.buffer, req.file.mimetype);
 
-                // Always save analysis (even if failed) so View Insights shows
+                // Build update data - always save analysis
+                const updateData = { analysis };
+
+                // Use AI-suggested category if analysis succeeded
+                if (analysis.status === 'Completed' && analysis.suggestedCategory) {
+                    updateData.category = analysis.suggestedCategory;
+                }
+
                 await prisma.document.update({
                     where: { id: doc.id },
-                    data: { analysis },
+                    data: updateData,
                 });
 
                 const updatedDoc = await prisma.document.findUnique({ where: { id: doc.id } });

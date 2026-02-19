@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, TrendingUp, MoreVertical, Plus, Activity, CreditCard } from 'lucide-react';
+import { Clock, TrendingUp, MoreVertical, Plus, Activity, CreditCard, AlertTriangle, FileWarning } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -172,6 +172,60 @@ const Dashboard = () => {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Expiring Documents Alert */}
+            {((stats.expiringDocuments?.length > 0) || (stats.expiredDocuments?.length > 0)) && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="card p-6 bg-white border border-amber-200/50 shadow-lg"
+                >
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+                            <AlertTriangle size={22} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800">Document Expiration Alerts</h3>
+                            <p className="text-sm text-gray-500">Documents that need your attention</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        {stats.expiredDocuments?.map(doc => (
+                            <div key={doc.id} className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
+                                <div className="flex items-center gap-3">
+                                    <FileWarning size={18} className="text-red-500" />
+                                    <div>
+                                        <p className="font-semibold text-red-800 text-sm">{doc.name}</p>
+                                        <p className="text-xs text-red-600/70">Expired on {new Date(doc.expiryDate).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">Expired</span>
+                            </div>
+                        ))}
+                        {stats.expiringDocuments?.map(doc => (
+                            <div key={doc.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                <div className="flex items-center gap-3">
+                                    <Clock size={18} className="text-amber-500" />
+                                    <div>
+                                        <p className="font-semibold text-amber-800 text-sm">{doc.name}</p>
+                                        <p className="text-xs text-amber-600/70">Expires on {new Date(doc.expiryDate).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">{doc.daysLeft}d left</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => window.location.href = '/documents'}
+                        className="mt-4 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                    >
+                        View All Documents →
+                    </button>
+                </motion.div>
+            )}
 
             {/* Top Row Widgets */}
             < motion.div
