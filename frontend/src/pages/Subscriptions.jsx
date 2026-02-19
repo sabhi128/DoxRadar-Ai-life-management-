@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, CreditCard, Calendar, Trash2, X, Check, Pencil, Eye, Search } from 'lucide-react';
+import { Plus, CreditCard, Calendar, Trash2, X, Check, Pencil, Eye, Search, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+
+const HIGH_COST_THRESHOLD = 50; // Monthly equivalent > $50
 
 const Subscriptions = () => {
     const [subscriptions, setSubscriptions] = useState([]);
@@ -80,12 +82,11 @@ const Subscriptions = () => {
             name: sub.name,
             price: sub.price,
             billingCycle: sub.billingCycle,
-            // Safe check for date
             nextBillingDate: sub.nextBillingDate ? sub.nextBillingDate.toString().split('T')[0] : '',
             category: sub.category,
             paymentMethod: sub.paymentMethod || 'Credit Card'
         });
-        setCurrentId(sub.id); // Fixed: _id -> id
+        setCurrentId(sub.id);
         setIsEditMode(true);
         setIsModalOpen(true);
     };
@@ -100,7 +101,7 @@ const Subscriptions = () => {
         try {
             await api.delete(`/subscriptions/${id}`);
             toast.success('Subscription deleted', { id: toastId });
-            setSubscriptions(subscriptions.filter(sub => sub.id !== id)); // Fixed: _id -> id
+            setSubscriptions(subscriptions.filter(sub => sub.id !== id));
         } catch (error) {
             toast.error('Failed to delete', { id: toastId });
         }
@@ -116,6 +117,27 @@ const Subscriptions = () => {
         sub.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // --- Helper: get renewal urgency ---
+    const getRenewalStatus = (sub) => {
+        const nextDate = new Date(sub.nextBillingDate || sub.nextPayment);
+        if (isNaN(nextDate.getTime())) return null;
+        const now = new Date();
+        const daysLeft = Math.ceil((nextDate - now) / (1000 * 60 * 60 * 24));
+        if (daysLeft < 0) return { label: 'Overdue', color: 'bg-red-100 text-red-700 border-red-200', daysLeft, urgent: true };
+        if (daysLeft === 0) return { label: 'Due today', color: 'bg-red-100 text-red-700 border-red-200', daysLeft, urgent: true };
+        if (daysLeft === 1) return { label: 'Tomorrow', color: 'bg-amber-100 text-amber-700 border-amber-200', daysLeft, urgent: true };
+        if (daysLeft <= 3) return { label: `${daysLeft}d left`, color: 'bg-amber-100 text-amber-700 border-amber-200', daysLeft, urgent: true };
+        if (daysLeft <= 7) return { label: `${daysLeft}d left`, color: 'bg-blue-100 text-blue-700 border-blue-200', daysLeft, urgent: false };
+        return null; // Not urgent
+    };
+
+    // --- Helper: is high-cost ---
+    const isHighCost = (sub) => {
+        const price = parseFloat(sub.price);
+        const monthly = sub.billingCycle === 'Monthly' ? price : price / 12;
+        return monthly >= HIGH_COST_THRESHOLD;
+    };
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -125,6 +147,10 @@ const Subscriptions = () => {
         hidden: { y: 20, opacity: 0 },
         visible: { y: 0, opacity: 1 }
     };
+
+    // Count alerts
+    const highCostCount = subscriptions.filter(isHighCost).length;
+    const urgentCount = subscriptions.filter(sub => getRenewalStatus(sub)?.urgent).length;
 
     return (
         <div className="space-y-6">
@@ -153,21 +179,61 @@ const Subscriptions = () => {
                 </div>
             </div>
 
-            {/* Stats Card */}
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="card p-6 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg"
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-white/20 rounded-lg">
-                        <CreditCard size={20} className="text-white" />
+            {/* Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="card p-5 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg"
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-white/20 rounded-lg">
+                            <CreditCard size={18} className="text-white" />
+                        </div>
+                        <span className="font-medium text-white/90 text-sm">Total Monthly Cost</span>
                     </div>
-                    <span className="font-medium text-white/90">Total Monthly Cost</span>
-                </div>
-                <div className="text-4xl font-bold">${totalMonthlyCost.toFixed(2)}</div>
-                <p className="text-sm text-white/70 mt-1">Based on {subscriptions.length} active subscriptions</p>
-            </motion.div>
+                    <div className="text-3xl font-bold">${totalMonthlyCost.toFixed(2)}</div>
+                    <p className="text-xs text-white/70 mt-1">{subscriptions.length} active subscriptions</p>
+                </motion.div>
+
+                {/* High Cost Alert Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className={`card p-5 shadow-lg ${highCostCount > 0 ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' : 'bg-white border border-gray-100'}`}
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className={`p-2 rounded-lg ${highCostCount > 0 ? 'bg-white/20' : 'bg-amber-50'}`}>
+                            <TrendingUp size={18} className={highCostCount > 0 ? 'text-white' : 'text-amber-500'} />
+                        </div>
+                        <span className={`font-medium text-sm ${highCostCount > 0 ? 'text-white/90' : 'text-gray-500'}`}>High-Cost Subs</span>
+                    </div>
+                    <div className={`text-3xl font-bold ${highCostCount > 0 ? '' : 'text-gray-800'}`}>{highCostCount}</div>
+                    <p className={`text-xs mt-1 ${highCostCount > 0 ? 'text-white/70' : 'text-gray-400'}`}>
+                        {highCostCount > 0 ? `Over $${HIGH_COST_THRESHOLD}/mo each` : 'No high-cost subscriptions'}
+                    </p>
+                </motion.div>
+
+                {/* Upcoming Renewals Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className={`card p-5 shadow-lg ${urgentCount > 0 ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white' : 'bg-white border border-gray-100'}`}
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className={`p-2 rounded-lg ${urgentCount > 0 ? 'bg-white/20' : 'bg-red-50'}`}>
+                            <AlertTriangle size={18} className={urgentCount > 0 ? 'text-white' : 'text-red-400'} />
+                        </div>
+                        <span className={`font-medium text-sm ${urgentCount > 0 ? 'text-white/90' : 'text-gray-500'}`}>Due Soon</span>
+                    </div>
+                    <div className={`text-3xl font-bold ${urgentCount > 0 ? '' : 'text-gray-800'}`}>{urgentCount}</div>
+                    <p className={`text-xs mt-1 ${urgentCount > 0 ? 'text-white/70' : 'text-gray-400'}`}>
+                        {urgentCount > 0 ? 'Renewals within 3 days' : 'No imminent renewals'}
+                    </p>
+                </motion.div>
+            </div>
 
             {/* List */}
             {loading ? (
@@ -181,56 +247,75 @@ const Subscriptions = () => {
                     animate="visible"
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
-                    {filteredSubscriptions.map((sub) => (
-                        <motion.div
-                            key={sub.id}
-                            variants={itemVariants}
-                            className="card p-5 hover:shadow-md transition-shadow relative group"
-                        >
-                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => handlePreview(sub)}
-                                    className="text-text-muted hover:text-primary p-1 bg-white rounded-full shadow-sm"
-                                    title="Preview"
-                                >
-                                    <Eye size={16} />
-                                </button>
-                                <button
-                                    onClick={() => handleEdit(sub)}
-                                    className="text-text-muted hover:text-primary p-1 bg-white rounded-full shadow-sm"
-                                    title="Edit"
-                                >
-                                    <Pencil size={16} />
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(sub.id)}
-                                    className="text-text-muted hover:text-red-500 p-1 bg-white rounded-full shadow-sm"
-                                    title="Delete"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
+                    {filteredSubscriptions.map((sub) => {
+                        const renewalStatus = getRenewalStatus(sub);
+                        const highCost = isHighCost(sub);
 
-                            <div className="flex items-start gap-4">
-                                <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center text-primary text-xl font-bold">
-                                    {sub.name.charAt(0).toUpperCase()}
+                        return (
+                            <motion.div
+                                key={sub.id}
+                                variants={itemVariants}
+                                className={`card p-5 hover:shadow-md transition-shadow relative group ${renewalStatus?.urgent ? 'ring-2 ring-amber-300/50' : ''}`}
+                            >
+                                {/* Badges Row */}
+                                <div className="absolute top-4 left-4 z-10 flex gap-1.5 flex-wrap">
+                                    {highCost && (
+                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider rounded-full border border-amber-200">
+                                            <TrendingUp size={10} /> High Cost
+                                        </span>
+                                    )}
+                                    {renewalStatus && (
+                                        <span className={`flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border ${renewalStatus.color}`}>
+                                            <Clock size={10} /> {renewalStatus.label}
+                                        </span>
+                                    )}
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-text-main">{sub.name}</h3>
-                                    <p className="text-sm text-text-muted">{sub.category}</p>
-                                    <div className="mt-3 flex items-center gap-4">
-                                        <span className="text-lg font-bold text-text-main">${sub.price}</span>
-                                        <span className="text-xs px-2 py-1 bg-gray-100 rounded text-text-muted font-medium">{sub.billingCycle}</span>
+
+                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                    <button
+                                        onClick={() => handlePreview(sub)}
+                                        className="text-text-muted hover:text-primary p-1 bg-white rounded-full shadow-sm"
+                                        title="Preview"
+                                    >
+                                        <Eye size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleEdit(sub)}
+                                        className="text-text-muted hover:text-primary p-1 bg-white rounded-full shadow-sm"
+                                        title="Edit"
+                                    >
+                                        <Pencil size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(sub.id)}
+                                        className="text-text-muted hover:text-red-500 p-1 bg-white rounded-full shadow-sm"
+                                        title="Delete"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+
+                                <div className={`flex items-start gap-4 ${(highCost || renewalStatus) ? 'mt-6' : ''}`}>
+                                    <div className="h-12 w-12 rounded-xl bg-gray-100 flex items-center justify-center text-primary text-xl font-bold">
+                                        {sub.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-text-main">{sub.name}</h3>
+                                        <p className="text-sm text-text-muted">{sub.category}</p>
+                                        <div className="mt-3 flex items-center gap-4">
+                                            <span className="text-lg font-bold text-text-main">${sub.price}</span>
+                                            <span className="text-xs px-2 py-1 bg-gray-100 rounded text-text-muted font-medium">{sub.billingCycle}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="mt-4 pt-4 border-t border-border-light flex items-center gap-2 text-xs text-text-muted">
-                                <Calendar size={14} />
-                                <span>Next billing: {new Date(sub.nextBillingDate).toLocaleDateString()}</span>
-                            </div>
-                        </motion.div>
-                    ))}
+                                <div className="mt-4 pt-4 border-t border-border-light flex items-center gap-2 text-xs text-text-muted">
+                                    <Calendar size={14} />
+                                    <span>Next billing: {new Date(sub.nextBillingDate).toLocaleDateString()}</span>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
                 </motion.div>
             ) : (
                 <div className="text-center py-20 text-text-muted bg-white rounded-2xl border border-dashed border-border-light">
@@ -238,7 +323,6 @@ const Subscriptions = () => {
                 </div>
             )}
 
-            {/* Add Subscription Modal */}
             {/* Add Subscription Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -361,12 +445,29 @@ const Subscriptions = () => {
                                 </div>
                                 <div>
                                     <h2 className="text-2xl font-bold">{previewSubscription.name}</h2>
-                                    <p className="text-blue-100">{previewSubscription.category}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-blue-100">{previewSubscription.category}</span>
+                                        {isHighCost(previewSubscription) && (
+                                            <span className="px-2 py-0.5 bg-amber-400/30 text-amber-100 rounded-full text-[10px] font-bold border border-amber-300/30">
+                                                HIGH COST
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <div className="p-6 space-y-4">
+                            {/* Renewal Alert Banner */}
+                            {getRenewalStatus(previewSubscription) && (
+                                <div className={`p-3 rounded-xl border flex items-center gap-2 ${getRenewalStatus(previewSubscription).color}`}>
+                                    <AlertTriangle size={16} />
+                                    <span className="text-sm font-semibold">
+                                        Payment {getRenewalStatus(previewSubscription).label === 'Overdue' ? 'is overdue' : `due ${getRenewalStatus(previewSubscription).label.toLowerCase()}`}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
                                 <div>
                                     <p className="text-sm text-text-muted">Cost</p>

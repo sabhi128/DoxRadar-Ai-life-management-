@@ -227,6 +227,57 @@ const Dashboard = () => {
                 </motion.div>
             )}
 
+            {/* Upcoming Subscription Payments Alert */}
+            {stats.upcomingPayments?.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.22, duration: 0.5 }}
+                    className="card p-6 bg-white border border-blue-200/50 shadow-lg"
+                >
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                            <CreditCard size={22} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800">Upcoming Payments</h3>
+                            <p className="text-sm text-gray-500">Subscriptions due within 7 days</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        {stats.upcomingPayments.map(sub => (
+                            <div key={sub.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold">
+                                        {sub.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-blue-800 text-sm">{sub.name}</p>
+                                        <p className="text-xs text-blue-600/70">{sub.category} • ${sub.price}</p>
+                                    </div>
+                                </div>
+                                <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${sub.daysLeft <= 1
+                                        ? 'bg-red-100 text-red-700'
+                                        : sub.daysLeft <= 3
+                                            ? 'bg-amber-100 text-amber-700'
+                                            : 'bg-blue-100 text-blue-700'
+                                    }`}>
+                                    {sub.daysLeft === 0 ? 'Due today' : sub.daysLeft === 1 ? 'Tomorrow' : `${sub.daysLeft}d left`}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => window.location.href = '/subscriptions'}
+                        className="mt-4 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                    >
+                        Manage Subscriptions →
+                    </button>
+                </motion.div>
+            )}
+
             {/* Freemium Trend Preview */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}

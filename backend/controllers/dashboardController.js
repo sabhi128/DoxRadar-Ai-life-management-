@@ -19,8 +19,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         return sub.period === 'Monthly' ? acc + price : acc + (price / 12);
     }, 0);
 
-    // Find nearest billing date
+    // Find nearest billing date + upcoming payments within 7 days
     const today = new Date();
+    const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     const upcomingBills = subscriptions
         .map(sub => ({
             ...sub,
@@ -30,6 +32,33 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         .sort((a, b) => a.nextDate - b.nextDate);
 
     const nextBill = upcomingBills.length > 0 ? upcomingBills[0] : null;
+
+    // Upcoming payments within 7 days (for dashboard widget)
+    const upcomingPayments = upcomingBills
+        .filter(sub => sub.nextDate <= sevenDaysFromNow)
+        .map(sub => ({
+            id: sub.id,
+            name: sub.name,
+            price: sub.price,
+            category: sub.category,
+            nextPayment: sub.nextPayment,
+            daysLeft: Math.ceil((sub.nextDate - today) / (1000 * 60 * 60 * 24))
+        }));
+
+    // High-cost subscriptions (monthly equivalent > $50)
+    const HIGH_COST_THRESHOLD = 50;
+    const highCostSubscriptions = subscriptions
+        .filter(sub => {
+            const monthly = sub.period === 'Monthly' ? sub.price : sub.price / 12;
+            return monthly >= HIGH_COST_THRESHOLD;
+        })
+        .map(sub => ({
+            id: sub.id,
+            name: sub.name,
+            price: sub.price,
+            period: sub.period,
+            monthlyCost: sub.period === 'Monthly' ? sub.price : parseFloat((sub.price / 12).toFixed(2))
+        }));
 
     // Calc spend by category
     const spendByCategory = subscriptions.reduce((acc, sub) => {
@@ -100,7 +129,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         subscriptionCount: subscriptions.length,
         spendChartData,
         expiringDocuments,
-        expiredDocuments
+        expiredDocuments,
+        upcomingPayments,
+        highCostSubscriptions
     });
 });
 
