@@ -123,7 +123,7 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
                 model,
                 messages,
                 temperature: 0.3,
-                max_tokens: 800
+                max_tokens: 1500
             }),
             signal: controller.signal
         });
@@ -151,7 +151,86 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         // Clean markdown code blocks if present
         text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
-        const parsed = JSON.parse(text);
+        // Try to extract just the JSON object if there's extra text
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd > jsonStart) {
+            text = text.substring(jsonStart, jsonEnd + 1);
+        }
+
+        // Attempt to repair truncated JSON before parsing
+        const repairJSON = (str) => {
+            let s = str.trim();
+
+            // Remove trailing comma
+            s = s.replace(/,\s*$/, '');
+
+            // Count and fix unclosed brackets/braces
+            let openBraces = 0, openBrackets = 0, inString = false, escapeNext = false;
+            for (let i = 0; i < s.length; i++) {
+                const c = s[i];
+                if (escapeNext) { escapeNext = false; continue; }
+                if (c === '\\') { escapeNext = true; continue; }
+                if (c === '"') { inString = !inString; continue; }
+                if (inString) continue;
+                if (c === '{') openBraces++;
+                if (c === '}') openBraces--;
+                if (c === '[') openBrackets++;
+                if (c === ']') openBrackets--;
+            }
+
+            // If we're still inside a string, close it
+            if (inString) {
+                s += '"';
+            }
+
+            // Remove trailing comma after fixing string
+            s = s.replace(/,\s*$/, '');
+
+            // Close unclosed brackets and braces
+            while (openBrackets > 0) { s += ']'; openBrackets--; }
+            while (openBraces > 0) { s += '}'; openBraces--; }
+
+            return s;
+        };
+
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (parseErr) {
+            console.warn("JSON parse failed, attempting repair...", parseErr.message);
+            try {
+                const repaired = repairJSON(text);
+                parsed = JSON.parse(repaired);
+                console.log("JSON repair succeeded!");
+            } catch (repairErr) {
+                console.warn("JSON repair also failed, extracting fields via regex...");
+                // Last resort: extract what we can with regex
+                const extractField = (str, field) => {
+                    const re = new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, 'i');
+                    const m = str.match(re);
+                    return m ? m[1] : null;
+                };
+                const extractArray = (str, field) => {
+                    const re = new RegExp(`"${field}"\\s*:\\s*\\[([^\\]]*)\\]`, 'i');
+                    const m = str.match(re);
+                    if (m) {
+                        return m[1].match(/"([^"]*)"/g)?.map(s => s.replace(/"/g, '')) || [];
+                    }
+                    return [];
+                };
+
+                parsed = {
+                    summary: extractField(text, 'summary') || 'Analysis completed with partial results.',
+                    plainLanguageExplanation: extractField(text, 'plainLanguageExplanation') || '',
+                    suggestedCategory: extractField(text, 'suggestedCategory') || 'Other',
+                    expiryDate: extractField(text, 'expiryDate'),
+                    renewalDate: extractField(text, 'renewalDate'),
+                    risks: extractArray(text, 'risks'),
+                    tags: extractArray(text, 'tags'),
+                };
+            }
+        }
 
         // Validate suggestedCategory
         if (!VALID_CATEGORIES.includes(parsed.suggestedCategory)) {
