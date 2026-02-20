@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, TrendingUp, TrendingDown, MoreVertical, Plus, Activity, CreditCard, AlertTriangle, FileWarning, Lock, DollarSign } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Clock, TrendingUp, TrendingDown, MoreVertical, Plus, Activity, CreditCard, AlertTriangle, FileWarning, Lock, DollarSign, X, Shield, Zap, BarChart3 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { useAuth } from '../context/AuthContext';
 import DashboardSkeleton from '../components/DashboardSkeleton';
 
 // ... existing imports
@@ -42,6 +43,7 @@ const CountUp = ({ end, duration = 0.8, prefix = '', suffix = '' }) => {
 };
 
 const Dashboard = () => {
+    const { setGlobalModal } = useAuth();
     const [stats, setStats] = useState({
         totalDocuments: 0,
         avgCheckIn: '--:--',
@@ -49,12 +51,15 @@ const Dashboard = () => {
         riskLevel: '0%',
         lifeAudit: null,
         spendChartData: [],
+        nextBill: null,
+        subscriptionCount: 0,
         user: { plan: 'Free' }
     });
     const [refreshKey, setRefreshKey] = useState(0);
     const [activityLog, setActivityLog] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openActionId, setOpenActionId] = useState(null);
+    const [howItWorksOpen, setHowItWorksOpen] = useState(false);
 
     // Handle click outside to close dropdown
     useEffect(() => {
@@ -163,10 +168,20 @@ const Dashboard = () => {
 
                     {/* Buttons */}
                     <div className="flex flex-col sm:flex-row gap-5 w-full justify-center items-center">
-                        <button className="px-8 py-4 bg-white text-blue-900 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-blue-900/20 transform hover:-translate-y-1 w-full sm:w-auto">
-                            Start Free Trial
+                        <button
+                            onClick={() => {
+                                if (typeof setGlobalModal === 'function') {
+                                    setGlobalModal('billing');
+                                }
+                            }}
+                            className="px-8 py-4 bg-white text-blue-900 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-blue-900/20 transform hover:-translate-y-1 w-full sm:w-auto"
+                        >
+                            {stats.user?.plan === 'Pro' ? 'Manage Pro Plan' : 'Start Free Trial'}
                         </button>
-                        <button className="px-8 py-4 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all backdrop-blur-sm w-full sm:w-auto">
+                        <button
+                            onClick={() => setHowItWorksOpen(true)}
+                            className="px-8 py-4 bg-white/10 border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all backdrop-blur-sm w-full sm:w-auto"
+                        >
                             See How It Works
                         </button>
                     </div>
@@ -184,6 +199,59 @@ const Dashboard = () => {
                 <DashboardSkeleton />
             ) : (
                 <>
+                    {/* Subscription Intelligence Summary */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1, duration: 0.5 }}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+                    >
+                        {/* Active Subscriptions Card */}
+                        <div className="card p-6 bg-white border border-blue-100/50 shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                    <Shield size={22} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Active Subscriptions</p>
+                                    <h3 className="text-2xl font-black text-gray-900">{stats.subscriptionCount || 0}</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Monthly Spend Card */}
+                        <div className="card p-6 bg-white border border-emerald-100/50 shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                                    <DollarSign size={22} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Monthly Spend</p>
+                                    <h3 className="text-2xl font-black text-gray-900">${stats.totalMonthlyCost || '0.00'}</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Next Billing Card */}
+                        <div className="card p-6 bg-white border border-purple-100/50 shadow-sm flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                                    <Clock size={22} />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Next Billing</p>
+                                    <h3 className="text-2xl font-black text-gray-900 truncate max-w-[150px]">
+                                        {stats.nextBill ? stats.nextBill.name : 'No upcoming'}
+                                    </h3>
+                                    {stats.nextBill && (
+                                        <p className="text-xs text-purple-500 font-medium mt-0.5">
+                                            {new Date(stats.nextBill.date).toLocaleDateString()} — ${stats.nextBill.amount}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
 
                     {/* Expiring Documents Alert */}
                     {((stats.expiringDocuments?.length > 0) || (stats.expiredDocuments?.length > 0)) && (
@@ -683,6 +751,98 @@ const Dashboard = () => {
                         </div>
 
                     </motion.div >
+                    {/* How It Works Modal */}
+                    <AnimatePresence>
+                        {howItWorksOpen && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setHowItWorksOpen(false)}
+                                    className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+                                >
+                                    <div className="absolute top-6 right-6 z-10">
+                                        <button
+                                            onClick={() => setHowItWorksOpen(false)}
+                                            className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+
+                                    <div className="p-10">
+                                        <div className="mb-8">
+                                            <h2 className="text-3xl font-black text-gray-900 mb-2">How DoxRadar Works</h2>
+                                            <p className="text-gray-500">Your personal operations agent, working 24/7 to protect your finances.</p>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <div className="flex gap-5">
+                                                <div className="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                                                    <Zap size={28} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-gray-900 mb-1">1. Intelligence Gathering</h3>
+                                                    <p className="text-sm text-gray-600 leading-relaxed">
+                                                        Simply upload your bills, subscriptions, or contracts. Our AI instantly parses and understands the fine print.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-5">
+                                                <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+                                                    <BarChart3 size={28} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-gray-900 mb-1">2. Continuous Monitoring</h3>
+                                                    <p className="text-sm text-gray-600 leading-relaxed">
+                                                        We scan for price hikes, hidden fees, and upcoming renewals. If something isn't right, we flag it immediately.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-5">
+                                                <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                                    <Shield size={28} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-gray-900 mb-1">3. Automated Operations</h3>
+                                                    <p className="text-sm text-gray-600 leading-relaxed">
+                                                        Our agents can negotiate better rates, cancel unwanted services, and dispute incorrect charges on your behalf.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-10 pt-8 border-t border-gray-100 flex gap-4">
+                                            <button
+                                                onClick={() => {
+                                                    setHowItWorksOpen(false);
+                                                    setGlobalModal('billing');
+                                                }}
+                                                className="btn btn-primary flex-1 py-4 text-lg"
+                                            >
+                                                {stats.user?.plan === 'Pro' ? 'Manage Pro Plan' : 'Get Started Now'}
+                                            </button>
+                                            <button
+                                                onClick={() => setHowItWorksOpen(false)}
+                                                className="btn bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 px-8 py-4 text-lg"
+                                            >
+                                                Maybe Later
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
                 </>
             )
             }

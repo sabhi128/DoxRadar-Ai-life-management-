@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileText, CreditCard, Activity, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, CreditCard, Activity, LogOut, Zap, Shield } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import Logo from '../assets/Logo.jpeg';
 
 const Sidebar = () => {
     const location = useLocation();
+    const { setGlobalModal } = useAuth();
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -40,8 +42,8 @@ const Sidebar = () => {
                             key={item.path}
                             to={item.path}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group relative overflow-hidden ${isActive
-                                    ? 'bg-primary/10 text-primary border border-primary/20 shadow-lg shadow-primary/5'
-                                    : 'text-dim-text hover:bg-white/5 hover:text-white'
+                                ? 'bg-primary/10 text-primary border border-primary/20 shadow-lg shadow-primary/5'
+                                : 'text-dim-text hover:bg-white/5 hover:text-white'
                                 }`}
                         >
                             <Icon size={20} className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
@@ -53,6 +55,34 @@ const Sidebar = () => {
                     );
                 })}
             </nav>
+
+            {/* Pro Upgrade Card */}
+            <div className="px-4 mb-4">
+                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 shadow-lg border border-white/10 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                        <Zap size={40} className="text-white" />
+                    </div>
+
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Shield size={16} className="text-blue-300" />
+                            <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Premium Access</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mb-1">Upgrade to Pro</h4>
+                        <p className="text-[10px] text-white/70 mb-4 leading-relaxed">
+                            Unlimited AI analysis & automatic negotiations.
+                        </p>
+                        <button
+                            onClick={() => {
+                                setGlobalModal('billing')
+                            }}
+                            className="w-full py-2 bg-white text-indigo-700 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors shadow-sm"
+                        >
+                            Get Started
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <div className="p-4 border-t border-white/10">
                 <button

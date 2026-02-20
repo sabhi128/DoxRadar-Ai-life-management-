@@ -10,7 +10,7 @@ import Logo from '../assets/Logo.jpeg';
 const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user: authUser, signOut } = useAuth();
+    const { user: authUser, signOut, activeModal, setGlobalModal } = useAuth();
     const localUser = JSON.parse(localStorage.getItem('user') || '{}');
     const userName = authUser?.user_metadata?.name || localUser.name || 'User';
     const userEmail = authUser?.email || localUser.email || 'user@example.com';
@@ -19,7 +19,7 @@ const Navbar = () => {
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [notifLoading, setNotifLoading] = useState(false);
-    const [activeModal, setActiveModal] = useState(null); // 'settings' | 'preferences' | 'billing' | 'help'
+    // Modal state is now handled globally via AuthContext
 
     const dropdownRef = useRef(null);
     const notifRef = useRef(null);
@@ -112,6 +112,18 @@ const Navbar = () => {
             window.location.href = '/login';
         }
     };
+
+    // Expose global billing modal trigger + Event Listener fallback
+    useEffect(() => {
+        const handleOpenBilling = () => setGlobalModal('billing');
+        window.openBillingModal = handleOpenBilling;
+        window.addEventListener('open-billing-modal', handleOpenBilling);
+
+        return () => {
+            delete window.openBillingModal;
+            window.removeEventListener('open-billing-modal', handleOpenBilling);
+        };
+    }, []);
 
     // Close dropdowns on outside click
     useEffect(() => {
@@ -322,21 +334,21 @@ const Navbar = () => {
 
                                         <div className="p-2 space-y-1">
                                             <button
-                                                onClick={() => { setIsProfileOpen(false); setActiveModal('settings'); }}
+                                                onClick={() => { setIsProfileOpen(false); setGlobalModal('settings'); }}
                                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
                                             >
                                                 <User size={18} className="text-gray-400" />
                                                 Account Settings
                                             </button>
                                             <button
-                                                onClick={() => { setIsProfileOpen(false); setActiveModal('preferences'); }}
+                                                onClick={() => { setIsProfileOpen(false); setGlobalModal('preferences'); }}
                                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
                                             >
                                                 <Settings size={18} className="text-gray-400" />
                                                 Preferences
                                             </button>
                                             <button
-                                                onClick={() => { setIsProfileOpen(false); setActiveModal('billing'); }}
+                                                onClick={() => { setIsProfileOpen(false); setGlobalModal('billing'); }}
                                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
                                             >
                                                 <CreditCard size={18} className="text-gray-400" />
@@ -347,7 +359,7 @@ const Navbar = () => {
 
                                         <div className="p-2 border-t border-gray-100">
                                             <button
-                                                onClick={() => { setIsProfileOpen(false); setActiveModal('help'); }}
+                                                onClick={() => { setIsProfileOpen(false); setGlobalModal('help'); }}
                                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
                                             >
                                                 <HelpCircle size={18} className="text-gray-400" />
@@ -384,7 +396,7 @@ const Navbar = () => {
                                 <>
                                     <div className="flex items-center justify-between p-6 border-b border-gray-100">
                                         <h2 className="text-lg font-bold text-gray-900">Account Settings</h2>
-                                        <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                                        <button onClick={() => setGlobalModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                                     </div>
                                     <div className="p-6 space-y-4">
                                         <div>
@@ -400,7 +412,7 @@ const Navbar = () => {
                                             <div className="flex items-center gap-2">
                                                 <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold">Free Plan</span>
                                                 <button
-                                                    onClick={() => { setActiveModal('billing'); }}
+                                                    onClick={() => { setGlobalModal('billing'); }}
                                                     className="text-sm text-primary hover:underline"
                                                 >
                                                     Upgrade
@@ -409,7 +421,7 @@ const Navbar = () => {
                                         </div>
                                         <div className="pt-2">
                                             <button
-                                                onClick={() => { toast.success('Profile settings are managed via your auth provider.'); setActiveModal(null); }}
+                                                onClick={() => { toast.success('Profile settings are managed via your auth provider.'); setGlobalModal(null); }}
                                                 className="btn btn-primary w-full"
                                             >
                                                 Save Changes
@@ -424,7 +436,7 @@ const Navbar = () => {
                                 <>
                                     <div className="flex items-center justify-between p-6 border-b border-gray-100">
                                         <h2 className="text-lg font-bold text-gray-900">Preferences</h2>
-                                        <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                                        <button onClick={() => setGlobalModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                                     </div>
                                     <div className="p-6 space-y-5">
                                         <div className="flex items-center justify-between">
@@ -459,7 +471,7 @@ const Navbar = () => {
                                         </div>
                                         <div className="pt-2">
                                             <button
-                                                onClick={() => { toast.success('Preferences saved!'); setActiveModal(null); }}
+                                                onClick={() => { toast.success('Preferences saved!'); setGlobalModal(null); }}
                                                 className="btn btn-primary w-full"
                                             >
                                                 Save Preferences
@@ -474,7 +486,7 @@ const Navbar = () => {
                                 <>
                                     <div className="flex items-center justify-between p-6 border-b border-gray-100">
                                         <h2 className="text-lg font-bold text-gray-900">Billing</h2>
-                                        <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                                        <button onClick={() => setGlobalModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                                     </div>
                                     <div className="p-6 space-y-4">
                                         <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white">
@@ -529,7 +541,7 @@ const Navbar = () => {
                                 <>
                                     <div className="flex items-center justify-between p-6 border-b border-gray-100">
                                         <h2 className="text-lg font-bold text-gray-900">Help & Support</h2>
-                                        <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                                        <button onClick={() => setGlobalModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                                     </div>
                                     <div className="p-6 space-y-3">
                                         {[

@@ -30,13 +30,17 @@ export const AuthProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, []);
 
+    const [activeModal, setActiveModal] = useState(null);
+
     const value = {
         signUp: (data) => supabase.auth.signUp(data),
         signIn: (data) => supabase.auth.signInWithPassword(data),
         signOut: () => supabase.auth.signOut(),
         user,
         session,
-        loading
+        loading,
+        activeModal,
+        setGlobalModal: setActiveModal
     };
 
     return (

@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, AuthProvider } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 
 import Loader from './components/Loader';
@@ -30,6 +31,7 @@ const ProtectedRoute = ({ children }) => {
 const App = () => {
     return (
         <Router>
+            <Toaster position="top-right" />
             <Suspense fallback={<Loader fullScreen={true} />}>
                 <Routes>
                     <Route path="/login" element={<Login />} />
