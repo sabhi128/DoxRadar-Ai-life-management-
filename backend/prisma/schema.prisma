@@ -12,6 +12,7 @@ model User {
   name      String
   email     String   @unique
   password  String
+  plan      String   @default("Free")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   documents Document[]
@@ -31,6 +32,8 @@ model Document {
   analysis  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model Subscription {

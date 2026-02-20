@@ -65,6 +65,19 @@ const Documents = () => {
         }
     };
 
+    const handleDeleteAll = async () => {
+        if (!window.confirm('WARNING: Are you sure you want to delete ALL documents? This action cannot be undone.')) return;
+
+        const toastId = toast.loading('Clearing all documents...');
+        try {
+            await api.delete('/documents/delete-all');
+            toast.success('All documents deleted', { id: toastId });
+            setDocuments([]);
+        } catch (error) {
+            toast.error('Failed to clear documents', { id: toastId });
+        }
+    };
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
@@ -215,6 +228,17 @@ const Documents = () => {
                         <Upload size={18} />
                         <span className="hidden sm:inline">Upload</span>
                     </button>
+
+                    {documents.length > 0 && (
+                        <button
+                            onClick={handleDeleteAll}
+                            className="btn bg-red-50 text-red-600 hover:bg-red-100 border-red-200 flex items-center gap-2"
+                            title="Delete All Documents"
+                        >
+                            <Trash2 size={18} />
+                            <span className="hidden sm:inline">Clear All</span>
+                        </button>
+                    )}
                 </div>
             </div>
 

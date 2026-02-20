@@ -263,6 +263,9 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     }));
 
     res.status(200).json({
+        user: {
+            plan: req.user.plan || 'Free'
+        },
         stats: {
             totalDocuments: allDocs.length,
             totalMonthlyCost: totalMonthlyCost.toFixed(2),

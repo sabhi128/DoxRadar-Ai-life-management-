@@ -286,7 +286,7 @@ const Navbar = () => {
                                     <p className="text-sm font-semibold text-gray-800 leading-tight group-hover:text-blue-700 transition-colors">
                                         {userName}
                                     </p>
-                                    <p className="text-[11px] text-gray-400 font-medium">Free Plan</p>
+                                    <p className="text-[11px] text-gray-400 font-medium">{localUser.plan === 'Pro' ? 'Pro Plan' : 'Free Plan'}</p>
                                 </div>
                                 <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-[2px] shadow-md group-hover:shadow-lg transition-all">
                                     <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
@@ -479,8 +479,8 @@ const Navbar = () => {
                                     <div className="p-6 space-y-4">
                                         <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white">
                                             <p className="text-xs text-white/70">Current Plan</p>
-                                            <p className="text-2xl font-bold">Free</p>
-                                            <p className="text-sm text-white/80 mt-1">Basic features included</p>
+                                            <p className="text-2xl font-bold">{localUser.plan === 'Pro' ? 'Pro' : 'Free'}</p>
+                                            <p className="text-sm text-white/80 mt-1">{localUser.plan === 'Pro' ? 'All features unlocked' : 'Basic features included'}</p>
                                         </div>
                                         <div className="p-4 border border-gray-200 rounded-xl">
                                             <div className="flex items-center justify-between mb-3">
@@ -497,10 +497,25 @@ const Navbar = () => {
                                                 <li className="flex items-center gap-2"><span className="text-emerald-500">✓</span> Export reports</li>
                                             </ul>
                                             <button
-                                                onClick={() => { toast('Pro plan coming soon! 🚀'); }}
+                                                onClick={async () => {
+                                                    if (localUser.plan === 'Pro') {
+                                                        toast.success('You are already on Pro!');
+                                                        return;
+                                                    }
+                                                    const tid = toast.loading('Upgrading...');
+                                                    try {
+                                                        const { data } = await api.post('/auth/upgrade-test');
+                                                        const newUser = { ...localUser, plan: 'Pro' };
+                                                        localStorage.setItem('user', JSON.stringify(newUser));
+                                                        toast.success('Upgraded to Pro! Refreshing...', { id: tid });
+                                                        setTimeout(() => window.location.reload(), 1500);
+                                                    } catch (err) {
+                                                        toast.error('Upgrade failed', { id: tid });
+                                                    }
+                                                }}
                                                 className="btn btn-primary w-full"
                                             >
-                                                Upgrade to Pro
+                                                {localUser.plan === 'Pro' ? 'Manage Plan' : 'Upgrade to Pro'}
                                             </button>
                                         </div>
                                     </div>

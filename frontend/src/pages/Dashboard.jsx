@@ -48,7 +48,8 @@ const Dashboard = () => {
         onTimeCompletion: '0%',
         riskLevel: '0%',
         lifeAudit: null,
-        spendChartData: []
+        spendChartData: [],
+        user: { plan: 'Free' }
     });
     const [refreshKey, setRefreshKey] = useState(0);
     const [activityLog, setActivityLog] = useState([]);
@@ -74,8 +75,11 @@ const Dashboard = () => {
             try {
                 // Fetch consolidated summary (stats + activity) in one call
                 const res = await api.get('/dashboard/summary');
-                if (res.data && res.data.stats) {
-                    setStats(res.data.stats);
+                if (res.data) {
+                    setStats({
+                        ...res.data.stats,
+                        user: res.data.user
+                    });
                     setActivityLog(res.data.activityLog || []);
                 }
             } catch (error) {
@@ -318,12 +322,14 @@ const Dashboard = () => {
 
                             {/* Locked Advanced Insights */}
                             <div className="relative mt-4 pt-4 border-t border-gray-100">
-                                <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
-                                        <Lock size={12} />
-                                        Unlock with Pro
+                                {stats.user?.plan !== 'Pro' && (
+                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
+                                            <Lock size={12} />
+                                            Unlock with Pro
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 <div className="space-y-2 opacity-50">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Top Category</span>
@@ -366,12 +372,14 @@ const Dashboard = () => {
 
                             {/* Locked Advanced Insights */}
                             <div className="relative mt-4 pt-4 border-t border-gray-100">
-                                <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
-                                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
-                                        <Lock size={12} />
-                                        Unlock with Pro
+                                {stats.user?.plan !== 'Pro' && (
+                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
+                                            <Lock size={12} />
+                                            Unlock with Pro
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 <div className="space-y-2 opacity-50">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Income Sources</span>

@@ -4,6 +4,8 @@ const {
     uploadDocument,
     getDocuments,
     deleteDocument,
+    getDocumentInsights,
+    deleteAllDocuments,
 } = require('../controllers/documentController');
 const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
@@ -35,6 +37,8 @@ function checkFileType(file, cb) {
 }
 
 router.route('/').get(protect, getDocuments).post(protect, upload.single('document'), uploadDocument);
+router.route('/delete-all').delete(protect, deleteAllDocuments);
 router.route('/:id').delete(protect, deleteDocument);
+router.route('/:id/insights').get(protect, getDocumentInsights);
 
 module.exports = router;

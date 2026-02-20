@@ -108,6 +108,27 @@ const getDocuments = asyncHandler(async (req, res) => {
     res.status(200).json(documents);
 });
 
+// @desc    Get document insights (full analysis)
+// @route   GET /api/documents/:id/insights
+// @access  Private
+const getDocumentInsights = asyncHandler(async (req, res) => {
+    const document = await prisma.document.findUnique({
+        where: { id: req.params.id },
+        select: {
+            id: true,
+            userId: true,
+            analysis: true,
+        }
+    });
+
+    if (!document || document.userId !== req.user.id) {
+        res.status(404);
+        throw new Error('Document insights not found');
+    }
+
+    res.status(200).json(document.analysis);
+});
+
 // @desc    Delete document
 // @route   DELETE /api/documents/:id
 // @access  Private
@@ -162,8 +183,54 @@ const deleteDocument = asyncHandler(async (req, res) => {
     res.status(200).json({ id: req.params.id });
 });
 
+const deleteAllDocuments = asyncHandler(async (req, res) => {
+    // 1. Get all documents for the user to get their paths
+    const documents = await prisma.document.findMany({
+        where: { userId: req.user.id },
+        select: { path: true }
+    });
+
+    if (documents.length === 0) {
+        return res.status(200).json({ message: 'No documents to delete', count: 0 });
+    }
+
+    // 2. Extract storage paths
+    const storagePaths = documents.map(doc => {
+        try {
+            const url = new URL(doc.path);
+            const pathParts = url.pathname.split('/documents/');
+            return pathParts.length > 1 ? decodeURIComponent(pathParts[1]) : null;
+        } catch (err) {
+            return null;
+        }
+    }).filter(p => p !== null);
+
+    // 3. Delete from Supabase Storage
+    if (storagePaths.length > 0) {
+        const { error: deleteError } = await supabase.storage
+            .from('documents')
+            .remove(storagePaths);
+
+        if (deleteError) {
+            console.error('Supabase Bulk Delete Error:', deleteError);
+        }
+    }
+
+    // 4. Delete from Database
+    const deleteResult = await prisma.document.deleteMany({
+        where: { userId: req.user.id }
+    });
+
+    res.status(200).json({
+        message: 'Successfully deleted all documents',
+        count: deleteResult.count
+    });
+});
+
 module.exports = {
     uploadDocument,
     getDocuments,
     deleteDocument,
+    getDocumentInsights,
+    deleteAllDocuments,
 };

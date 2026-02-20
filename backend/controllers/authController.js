@@ -28,7 +28,7 @@ const getMe = asyncHandler(async (req, res) => {
         id: req.user.id,
         name: req.user.name,
         email: req.user.email,
-        // Add any other profile fields stored in Postgres
+        plan: req.user.plan || 'Free', // Defaults to 'Free' if null
     });
 });
 
