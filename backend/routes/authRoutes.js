@@ -5,12 +5,13 @@ const {
     loginUser,
     getMe,
 } = require('../controllers/authController');
-const { upgradeTest } = require('../controllers/testController');
+const { upgradeTest, downgradeTest } = require('../controllers/testController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.get('/me', protect, getMe);
 router.post('/upgrade-test', protect, upgradeTest);
+router.post('/downgrade-test', protect, downgradeTest);
 
 module.exports = router;

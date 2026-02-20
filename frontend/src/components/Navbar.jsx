@@ -498,24 +498,26 @@ const Navbar = () => {
                                             </ul>
                                             <button
                                                 onClick={async () => {
-                                                    if (localUser.plan === 'Pro') {
-                                                        toast.success('You are already on Pro!');
-                                                        return;
-                                                    }
-                                                    const tid = toast.loading('Upgrading...');
+                                                    const isPro = localUser.plan === 'Pro';
+                                                    const tid = toast.loading(isPro ? 'Downgrading...' : 'Upgrading...');
                                                     try {
-                                                        const { data } = await api.post('/auth/upgrade-test');
-                                                        const newUser = { ...localUser, plan: 'Pro' };
+                                                        const endpoint = isPro ? '/auth/downgrade-test' : '/auth/upgrade-test';
+                                                        const targetPlan = isPro ? 'Free' : 'Pro';
+
+                                                        await api.post(endpoint);
+
+                                                        const newUser = { ...localUser, plan: targetPlan };
                                                         localStorage.setItem('user', JSON.stringify(newUser));
-                                                        toast.success('Upgraded to Pro! Refreshing...', { id: tid });
+
+                                                        toast.success(`${isPro ? 'Downgraded' : 'Upgraded'} successfully! Refreshing...`, { id: tid });
                                                         setTimeout(() => window.location.reload(), 1500);
                                                     } catch (err) {
-                                                        toast.error('Upgrade failed', { id: tid });
+                                                        toast.error('Action failed', { id: tid });
                                                     }
                                                 }}
-                                                className="btn btn-primary w-full"
+                                                className={`btn w-full ${localUser.plan === 'Pro' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'btn-primary'}`}
                                             >
-                                                {localUser.plan === 'Pro' ? 'Manage Plan' : 'Upgrade to Pro'}
+                                                {localUser.plan === 'Pro' ? 'Downgrade to Free' : 'Upgrade to Pro'}
                                             </button>
                                         </div>
                                     </div>
