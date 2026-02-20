@@ -127,7 +127,14 @@ const Navbar = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Load notifications when bell panel opens
+    // Load notifications on mount + refresh every 60s for indicator dot
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 60000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Also refresh when bell panel opens
     useEffect(() => {
         if (isNotifOpen) {
             fetchNotifications();

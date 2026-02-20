@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 
+import Loader from '../components/Loader';
+
 const AuthContext = createContext({});
 
 export const useAuth = () => useContext(AuthContext);
@@ -39,7 +41,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {loading ? <Loader fullScreen={true} text="Authenticating..." /> : children}
         </AuthContext.Provider>
     );
 };

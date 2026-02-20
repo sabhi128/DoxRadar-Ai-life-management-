@@ -7,7 +7,10 @@ dotenv.config();
 
 const app = express();
 
+const compression = require('compression');
+
 // Middleware
+app.use(compression());
 app.use(express.json());
 app.use(cors({
     origin: '*', // Allow all for now to debug, restrict later

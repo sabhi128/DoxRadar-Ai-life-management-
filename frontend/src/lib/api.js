@@ -11,6 +11,7 @@ const api = axios.create({
 // Request interceptor — always get a FRESH token before each API call
 api.interceptors.request.use(
     async (config) => {
+        const interceptorStart = Date.now();
         // First try getSession (fast, cached)
         let { data: { session } } = await supabase.auth.getSession();
 
