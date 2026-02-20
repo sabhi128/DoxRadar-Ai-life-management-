@@ -116,8 +116,8 @@ const LifeAudit = () => {
                     <button
                         onClick={() => setActiveTab('report')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'report'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'bg-gray-100 text-text-muted hover:bg-gray-200'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-gray-100 text-text-muted hover:bg-gray-200'
                             }`}
                     >
                         Monthly Report
@@ -125,8 +125,8 @@ const LifeAudit = () => {
                     <button
                         onClick={() => setActiveTab('self-assess')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'self-assess'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'bg-gray-100 text-text-muted hover:bg-gray-200'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-gray-100 text-text-muted hover:bg-gray-200'
                             }`}
                     >
                         Self Assessment
@@ -424,8 +424,8 @@ const LifeAudit = () => {
                                                 <div
                                                     key={doc.id}
                                                     className={`flex items-center justify-between p-3 rounded-xl border ${doc.status === 'expired'
-                                                            ? 'bg-red-50 border-red-100'
-                                                            : 'bg-amber-50 border-amber-100'
+                                                        ? 'bg-red-50 border-red-100'
+                                                        : 'bg-amber-50 border-amber-100'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -440,8 +440,8 @@ const LifeAudit = () => {
                                                         </div>
                                                     </div>
                                                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${doc.status === 'expired'
-                                                            ? 'bg-red-100 text-red-700'
-                                                            : 'bg-amber-100 text-amber-700'
+                                                        ? 'bg-red-100 text-red-700'
+                                                        : 'bg-amber-100 text-amber-700'
                                                         }`}>
                                                         {doc.status === 'expired' ? 'Expired' : `${doc.daysLeft}d left`}
                                                     </span>

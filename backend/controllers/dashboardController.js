@@ -162,9 +162,9 @@ const getRecentActivity = asyncHandler(async (req, res) => {
 // @route   GET /api/dashboard/summary
 // @access  Private
 const getDashboardSummary = asyncHandler(async (req, res) => {
-    // Run all queries in parallel
-    const [totalDocs, subscriptions, latestAudit, allDocsLight, recentDocs] = await Promise.all([
-        prisma.document.count({ where: { userId: req.user.id } }),
+    // Run core queries in parallel
+    // Consolidated 'totalDocs', 'recentDocs', and 'allDocsLight' into one fetch to save round-trips
+    const [subscriptions, latestAudit, allDocs] = await Promise.all([
         prisma.subscription.findMany({ where: { userId: req.user.id } }),
         prisma.lifeAudit.findFirst({
             where: { userId: req.user.id },
@@ -172,12 +172,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
         }),
         prisma.document.findMany({
             where: { userId: req.user.id },
-            select: { id: true, name: true, category: true, analysis: true }
-        }),
-        prisma.document.findMany({
-            where: { userId: req.user.id },
             orderBy: { createdAt: 'desc' },
-            take: 5
+            select: { id: true, name: true, category: true, analysis: true, createdAt: true }
         })
     ]);
 
@@ -224,7 +220,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     const expiringDocuments = [];
     const expiredDocuments = [];
 
-    for (const doc of allDocsLight) {
+    // Process expiries from allDocs
+    for (const doc of allDocs) {
         if (!doc.analysis) continue;
         const expiryStr = doc.analysis.expiryDate;
         if (expiryStr) {
@@ -254,8 +251,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     }
     expiringDocuments.sort((a, b) => a.daysLeft - b.daysLeft);
 
-    // 2. Process Activity
-    const activityLog = recentDocs.map((doc, index) => ({
+    // 2. Process Activity (Top 5 from allDocs)
+    const activityLog = allDocs.slice(0, 5).map((doc, index) => ({
         id: doc.id,
         name: doc.name,
         role: doc.category,
@@ -267,7 +264,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         stats: {
-            totalDocuments: totalDocs,
+            totalDocuments: allDocs.length,
             totalMonthlyCost: totalMonthlyCost.toFixed(2),
             nextBill: nextBill ? { name: nextBill.name, amount: nextBill.price, date: nextBill.nextPayment } : null,
             lifeAudit: latestAudit ? latestAudit.ratings : null,
