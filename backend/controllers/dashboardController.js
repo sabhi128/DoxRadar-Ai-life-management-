@@ -119,6 +119,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     // Sort expiring by most urgent first
     expiringDocuments.sort((a, b) => a.daysLeft - b.daysLeft);
 
+    // Dynamic Storage Calculation
+    const planLimits = { 'Free': 20, 'Pro': 200 };
+    const userPlan = req.user.plan || 'Free';
+    const storageLimit = planLimits[userPlan] || 20;
+    const storagePercentage = Math.min(Math.round((totalDocs / storageLimit) * 100), 100);
+
     res.status(200).json({
         totalDocuments: totalDocs,
         totalMonthlyCost: totalMonthlyCost.toFixed(2),
@@ -129,7 +135,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         expiringDocuments,
         expiredDocuments,
         upcomingPayments,
-        highCostSubscriptions
+        highCostSubscriptions,
+        storagePercentage,
+        storageLimit
     });
 });
 
@@ -251,6 +259,12 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     }
     expiringDocuments.sort((a, b) => a.daysLeft - b.daysLeft);
 
+    // Dynamic Storage Calculation
+    const planLimits = { 'Free': 20, 'Pro': 200 };
+    const userPlan = req.user.plan || 'Free';
+    const storageLimit = planLimits[userPlan] || 20;
+    const storagePercentage = Math.min(Math.round((allDocs.length / storageLimit) * 100), 100);
+
     // 2. Process Activity (Top 5 from allDocs)
     const activityLog = allDocs.slice(0, 5).map((doc, index) => ({
         id: doc.id,
@@ -275,7 +289,9 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
             spendChartData,
             expiringDocuments,
             expiredDocuments,
-            upcomingPayments
+            upcomingPayments,
+            storagePercentage,
+            storageLimit
         },
         activityLog
     });

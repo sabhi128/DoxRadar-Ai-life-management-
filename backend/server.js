@@ -38,6 +38,7 @@ const documentRoutes = require('./routes/documentRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const lifeAuditRoutes = require('./routes/lifeAuditRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -45,6 +46,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/life-audit', lifeAuditRoutes);
+app.use('/api/users', userRoutes);
 
 // Serve uploads
 app.use('/uploads', express.static('uploads'));

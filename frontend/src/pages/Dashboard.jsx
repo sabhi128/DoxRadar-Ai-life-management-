@@ -623,12 +623,12 @@ const Dashboard = () => {
                                 <div className="mt-auto">
                                     <div className="flex justify-between text-xs text-white/60 mb-2">
                                         <span>Storage Used</span>
-                                        <span>60%</span>
+                                        <span>{stats.storagePercentage || 0}%</span>
                                     </div>
                                     <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
                                         <motion.div
                                             initial={{ width: 0 }}
-                                            animate={{ width: '60%' }} // Just a visual indicator
+                                            animate={{ width: `${stats.storagePercentage || 0}%` }}
                                             className="h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                                             transition={{ duration: 1.5, delay: 0.5, type: "spring" }}
                                         />

@@ -61,8 +61,19 @@ const uploadDocument = asyncHandler(async (req, res) => {
     });
 
     if (doc) {
-        // Only attempt AI analysis if explicitly enabled
-        const enableAI = process.env.ENABLE_AI_ANALYSIS !== 'false';
+        // Only attempt AI analysis if explicitly enabled in ENV AND user preferences
+        let enableAI = process.env.ENABLE_AI_ANALYSIS !== 'false';
+
+        if (enableAI) {
+            // Check user preferences
+            const prefs = await prisma.userPreference.findUnique({
+                where: { userId: req.user.id }
+            });
+
+            if (prefs && prefs.aiDocumentAnalysis === false) {
+                enableAI = false;
+            }
+        }
 
         if (enableAI) {
             try {

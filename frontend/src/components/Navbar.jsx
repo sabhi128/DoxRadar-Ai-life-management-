@@ -12,7 +12,7 @@ const Navbar = () => {
     const navigate = useNavigate();
     const { user: authUser, signOut, activeModal, setGlobalModal } = useAuth();
     const localUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const userName = authUser?.user_metadata?.name || localUser.name || 'User';
+    const userName = localUser.name || authUser?.user_metadata?.name || 'User';
     const userEmail = authUser?.email || localUser.email || 'user@example.com';
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -23,6 +23,13 @@ const Navbar = () => {
 
     const dropdownRef = useRef(null);
     const notifRef = useRef(null);
+    const [nameInput, setNameInput] = useState(userName);
+    const [prefLoading, setPrefLoading] = useState(false);
+    const [preferences, setPreferences] = useState({
+        emailNotifications: true,
+        aiDocumentAnalysis: true,
+        highCostThreshold: 50.0
+    });
 
     const navLinks = [
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -139,8 +146,37 @@ const Navbar = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Load notifications on mount + refresh every 60s for indicator dot
+    // Fetch user preferences
+    const fetchPreferences = async () => {
+        try {
+            setPrefLoading(true);
+            const { data } = await api.get('/users/preferences');
+            setPreferences({
+                emailNotifications: data.emailNotifications,
+                aiDocumentAnalysis: data.aiDocumentAnalysis,
+                highCostThreshold: data.highCostThreshold
+            });
+        } catch (err) {
+            console.error('Failed to load preferences', err);
+        } finally {
+            setPrefLoading(false);
+        }
+    };
+
+    const handleSavePreferences = async () => {
+        const tid = toast.loading('Saving preferences...');
+        try {
+            await api.put('/users/preferences', preferences);
+            toast.success('Preferences saved!', { id: tid });
+            setGlobalModal(null);
+        } catch (err) {
+            toast.error('Failed to save preferences', { id: tid });
+        }
+    };
+
+    // Load everything on mount
     useEffect(() => {
+        fetchPreferences();
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 60000);
         return () => clearInterval(interval);
@@ -152,6 +188,36 @@ const Navbar = () => {
             fetchNotifications();
         }
     }, [isNotifOpen]);
+
+    // Refresh preferences when modal opens
+    useEffect(() => {
+        if (activeModal === 'preferences') {
+            fetchPreferences();
+        }
+        if (activeModal === 'settings') {
+            setNameInput(userName);
+        }
+    }, [activeModal, userName]);
+
+    const handleUpdateProfile = async () => {
+        const tid = toast.loading('Updating profile...');
+        try {
+            const { data } = await api.put('/auth/profile', { name: nameInput });
+
+            // Update local storage
+            const updatedUser = { ...localUser, name: data.name };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            toast.success('Profile updated!', { id: tid });
+            setGlobalModal(null);
+
+            // Force a small delay then reload or just let the local storage update reflect
+            // Re-loading is safer to ensure all components see the change
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Update failed', { id: tid });
+        }
+    };
 
     const notifColors = {
         danger: 'bg-red-50 border-red-100 text-red-700',
@@ -401,16 +467,21 @@ const Navbar = () => {
                                     <div className="p-6 space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                                            <input type="text" defaultValue={userName} className="input w-full" disabled />
+                                            <input
+                                                type="text"
+                                                value={nameInput}
+                                                onChange={(e) => setNameInput(e.target.value)}
+                                                className="input w-full"
+                                            />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                            <input type="email" defaultValue={userEmail} className="input w-full" disabled />
+                                            <input type="email" defaultValue={userEmail} className="input w-full bg-gray-50 cursor-not-allowed" disabled />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
                                             <div className="flex items-center gap-2">
-                                                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold">Free Plan</span>
+                                                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold">{localUser.plan || 'Free'} Plan</span>
                                                 <button
                                                     onClick={() => { setGlobalModal('billing'); }}
                                                     className="text-sm text-primary hover:underline"
@@ -421,7 +492,7 @@ const Navbar = () => {
                                         </div>
                                         <div className="pt-2">
                                             <button
-                                                onClick={() => { toast.success('Profile settings are managed via your auth provider.'); setGlobalModal(null); }}
+                                                onClick={handleUpdateProfile}
                                                 className="btn btn-primary w-full"
                                             >
                                                 Save Changes
@@ -445,7 +516,12 @@ const Navbar = () => {
                                                 <p className="text-xs text-gray-500">Receive alerts for deadlines and renewals</p>
                                             </div>
                                             <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" defaultChecked className="sr-only peer" />
+                                                <input
+                                                    type="checkbox"
+                                                    checked={preferences.emailNotifications}
+                                                    onChange={(e) => setPreferences({ ...preferences, emailNotifications: e.target.checked })}
+                                                    className="sr-only peer"
+                                                />
                                                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
                                             </label>
                                         </div>
@@ -455,7 +531,12 @@ const Navbar = () => {
                                                 <p className="text-xs text-gray-500">Automatically analyze uploaded documents</p>
                                             </div>
                                             <label className="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" defaultChecked className="sr-only peer" />
+                                                <input
+                                                    type="checkbox"
+                                                    checked={preferences.aiDocumentAnalysis}
+                                                    onChange={(e) => setPreferences({ ...preferences, aiDocumentAnalysis: e.target.checked })}
+                                                    className="sr-only peer"
+                                                />
                                                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
                                             </label>
                                         </div>
@@ -466,15 +547,21 @@ const Navbar = () => {
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <span className="text-sm text-gray-500">$</span>
-                                                <input type="number" defaultValue={50} className="input w-20 text-center" />
+                                                <input
+                                                    type="number"
+                                                    value={preferences.highCostThreshold}
+                                                    onChange={(e) => setPreferences({ ...preferences, highCostThreshold: e.target.value })}
+                                                    className="input w-20 text-center"
+                                                />
                                             </div>
                                         </div>
                                         <div className="pt-2">
                                             <button
-                                                onClick={() => { toast.success('Preferences saved!'); setGlobalModal(null); }}
+                                                onClick={handleSavePreferences}
+                                                disabled={prefLoading}
                                                 className="btn btn-primary w-full"
                                             >
-                                                Save Preferences
+                                                {prefLoading ? 'Saving...' : 'Save Preferences'}
                                             </button>
                                         </div>
                                     </div>

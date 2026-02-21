@@ -1,6 +1,9 @@
 const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
+const xlsx = require('xlsx');
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 // Categories the AI can assign
 const VALID_CATEGORIES = [
@@ -9,14 +12,21 @@ const VALID_CATEGORIES = [
 ];
 
 // Log API key status at module load (helps debug Vercel env issues)
+console.log(`[aiService] OPENAI_API_KEY loaded: ${!!process.env.OPENAI_API_KEY} (length: ${process.env.OPENAI_API_KEY?.length || 0})`);
 console.log(`[aiService] OPENROUTER_API_KEY loaded: ${!!process.env.OPENROUTER_API_KEY} (length: ${process.env.OPENROUTER_API_KEY?.length || 0})`);
 
 const analyzeDocument = async (fileBuffer, mimeType) => {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-        console.error("OPENROUTER_API_KEY not set. Available env keys:", Object.keys(process.env).filter(k => k.includes('OPEN') || k.includes('AI')).join(', '));
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+    if (!openaiKey && !openrouterKey) {
+        console.error("No AI API keys set.");
         return { status: 'Failed', summary: "AI not configured.", risks: [], tags: [] };
     }
+
+    const useOpenAI = !!openaiKey;
+    const apiKey = useOpenAI ? openaiKey : openrouterKey;
+    const apiUrl = useOpenAI ? OPENAI_API_URL : OPENROUTER_API_URL;
 
     try {
         let documentText = '';
@@ -32,22 +42,57 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
                 console.error("PDF parse error:", pdfErr.message);
                 documentText = '';
             }
+        } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || mimeType === 'application/msword') {
+            try {
+                const result = await mammoth.extractRawText({ buffer: fileBuffer });
+                documentText = result.value || '';
+                console.log(`Word doc text extracted: ${documentText.length} chars`);
+            } catch (wordErr) {
+                console.error("Word parse error:", wordErr.message);
+                documentText = '';
+            }
+        } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || mimeType === 'application/vnd.ms-excel') {
+            try {
+                const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+                let excelText = '';
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    excelText += `Sheet: ${sheetName}\n`;
+                    excelText += xlsx.utils.sheet_to_csv(worksheet) + '\n\n';
+                });
+                documentText = excelText;
+                console.log(`Excel text extracted: ${documentText.length} chars`);
+            } catch (excelErr) {
+                console.error("Excel parse error:", excelErr.message);
+                documentText = '';
+            }
         } else if (mimeType?.startsWith('image/')) {
             // Mark as image — will use vision model
             isImageAnalysis = true;
             console.log(`Image detected (${mimeType}), will use vision model`);
         } else {
+            // Fallback for all other file types (Text, Logs, CSV, etc.)
             documentText = fileBuffer.toString('utf-8');
+
+            // If it looks like binary or garbage, clean it
+            if (documentText.includes('\ufffd') || /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(documentText)) {
+                console.log("Detected non-text encoding, cleaning buffer...");
+                documentText = fileBuffer.toString('utf-8')
+                    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ') // Remove control chars
+                    .replace(/\s{3,}/g, ' ') // Remove excessive whitespace
+                    .trim();
+            }
+            console.log(`Universal fallback extracted: ${documentText.length} chars`);
         }
 
-        // Fallback: try raw buffer extraction for PDFs with minimal text
+        // Final secondary fallback if primary extraction yielded very little (less than 50 chars)
         if (!isImageAnalysis && documentText.trim().length < 50) {
-            console.log("Minimal text extracted, trying raw buffer...");
+            console.log("Minimal text extracted, trying raw string conversion...");
             const rawText = fileBuffer.toString('utf-8');
             const readable = rawText.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s{3,}/g, ' ').trim();
             if (readable.length > documentText.trim().length) {
                 documentText = readable;
-                console.log(`Raw extraction got: ${documentText.length} chars`);
+                console.log(`Raw fallback got: ${documentText.length} chars`);
             }
         }
 
@@ -76,7 +121,13 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         const userPrompt = `Analyze this document and return JSON only:\n${jsonSchema}`;
 
         let messages;
-        let model = process.env.OPENROUTER_MODEL || 'openrouter/auto';
+        let model;
+
+        if (useOpenAI) {
+            model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+        } else {
+            model = process.env.OPENROUTER_MODEL || 'openrouter/auto';
+        }
 
         if (isImageAnalysis) {
             // Use vision model with base64 image
@@ -94,8 +145,10 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
                 }
             ];
 
-            // Use a vision-capable free model for images
-            model = process.env.OPENROUTER_VISION_MODEL || 'google/gemma-3-27b-it:free';
+            // Use a vision-capable model for images
+            if (!useOpenAI) {
+                model = process.env.OPENROUTER_VISION_MODEL || 'google/gemma-3-27b-it:free';
+            }
             console.log(`Using vision model: ${model}`);
         } else {
             // Text-based analysis
@@ -107,7 +160,7 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
                     content: `${userPrompt}\n\nDocument text:\n${truncatedText}`
                 }
             ];
-            console.log(`Sending ${truncatedText.length} chars to OpenRouter...`);
+            console.log(`Sending ${truncatedText.length} chars to ${useOpenAI ? 'OpenAI' : 'OpenRouter'}...`);
         }
 
         // --- API CALL (with retry for free-tier intermittent failures) ---
@@ -119,14 +172,19 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
             const timeout = setTimeout(() => controller.abort(), 45000);
 
             try {
-                response = await fetch(OPENROUTER_API_URL, {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                };
+
+                if (!useOpenAI) {
+                    headers['HTTP-Referer'] = 'https://doxradar.app';
+                    headers['X-Title'] = 'DoxRadar AI Life Manager';
+                }
+
+                response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
-                        'HTTP-Referer': 'https://doxradar.app',
-                        'X-Title': 'DoxRadar AI Life Manager'
-                    },
+                    headers,
                     body: JSON.stringify({
                         model,
                         messages,
@@ -162,7 +220,7 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         }
 
         const data = await response.json();
-        console.log("OpenRouter raw response:", JSON.stringify(data).substring(0, 300));
+        console.log(`${useOpenAI ? 'OpenAI' : 'OpenRouter'} raw response:`, JSON.stringify(data).substring(0, 300));
 
         let text = data.choices?.[0]?.message?.content;
         if (!text) {
@@ -265,7 +323,7 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         const msg = error.name === 'AbortError'
             ? 'AI request timed out after 30 seconds'
             : error.message;
-        console.error("OpenRouter Analysis Failed:", msg);
+        console.error(`${useOpenAI ? 'OpenAI' : 'OpenRouter'} Analysis Failed:`, msg);
         return {
             status: 'Failed',
             summary: `AI Analysis failed: ${msg}`,

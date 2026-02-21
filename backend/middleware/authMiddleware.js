@@ -85,9 +85,32 @@ const protect = asyncHandler(async (req, res, next) => {
             req.user = localUser;
             next();
         } catch (error) {
-            console.error('Auth Error:', error.message);
+            console.error('--- AUTH ERROR ---');
+            console.error('Type:', error.constructor.name);
+            console.error('Code:', error.code);
+            console.error('Message:', error.message);
+
+            // Detailed Prisma Connection error handling
+            const isPrismaError = error.message.includes('Prisma') || error.code?.startsWith('P');
+            const isConnectionError = error.message.includes('Can\'t reach database') ||
+                error.message.includes('P1001') ||
+                error.message.includes('timed out') ||
+                error.message.includes('Connection refused');
+
+            if (isPrismaError && isConnectionError) {
+                res.status(503);
+                return res.json({
+                    error: 'DATABASE_CONNECTION_ERROR',
+                    code: error.code || 'UNKNOWN_PRISMA_CODE',
+                    message: 'Your network is blocking the connection to Supabase. Port 6543 is likely restricted.'
+                });
+            }
+
             res.status(401);
-            throw new Error('Not authorized');
+            res.json({
+                error: 'UNAUTHORIZED',
+                message: error.message || 'Authentication failed'
+            });
         }
     }
 
