@@ -39,6 +39,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const lifeAuditRoutes = require('./routes/lifeAuditRoutes');
 const userRoutes = require('./routes/userRoutes');
+const incomeRoutes = require('./routes/incomeRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -47,6 +48,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/life-audit', lifeAuditRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/income', incomeRoutes);
 
 // Serve uploads
 app.use('/uploads', express.static('uploads'));

@@ -18,6 +18,7 @@ model User {
   documents Document[]
   subscriptions Subscription[]
   lifeAudits LifeAudit[]
+  incomes Income[]
   preference UserPreference?
 }
 
@@ -74,4 +75,21 @@ model LifeAudit {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Income {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  name          String
+  amount        Float
+  currency      String   @default("USD")
+  frequency     String   @default("Monthly") // e.g., Monthly, One-time
+  category      String   @default("Salary")
+  date          DateTime @default(now())
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
 }

@@ -60,6 +60,21 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [openActionId, setOpenActionId] = useState(null);
     const [howItWorksOpen, setHowItWorksOpen] = useState(false);
+    const [incomeModalOpen, setIncomeModalOpen] = useState(false);
+    const [newIncome, setNewIncome] = useState({ name: '', amount: '', category: 'Salary', frequency: 'Monthly' });
+
+    const handleAddIncome = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/income', newIncome);
+            toast.success("Income added successfully");
+            setIncomeModalOpen(false);
+            setRefreshKey(prev => prev + 1);
+            setNewIncome({ name: '', amount: '', category: 'Salary', frequency: 'Monthly' });
+        } catch (error) {
+            toast.error("Failed to add income");
+        }
+    };
 
     // Handle click outside to close dropdown
     useEffect(() => {
@@ -381,14 +396,16 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
-                                    <TrendingDown size={14} className="text-green-600" />
-                                    <span className="text-sm font-bold text-green-700">↓ 3%</span>
-                                    <span className="text-xs text-green-600/70">vs last month</span>
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${parseFloat(stats.expenseTrend) <= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                                    {parseFloat(stats.expenseTrend) <= 0 ? <TrendingDown size={14} className="text-green-600" /> : <TrendingUp size={14} className="text-red-600" />}
+                                    <span className={`text-sm font-bold ${parseFloat(stats.expenseTrend) <= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                        {Math.abs(stats.expenseTrend)}%
+                                    </span>
+                                    <span className={`text-xs ${parseFloat(stats.expenseTrend) <= 0 ? 'text-green-600/70' : 'text-red-600/70'}`}>vs last month</span>
                                 </div>
                             </div>
 
-                            {/* Locked Advanced Insights */}
+                            {/* Advanced Insights */}
                             <div className="relative mt-4 pt-4 border-t border-gray-100">
                                 {stats.user?.plan !== 'Pro' && (
                                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
@@ -398,18 +415,18 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 )}
-                                <div className="space-y-2 opacity-50">
+                                <div className={`space-y-2 ${stats.user?.plan !== 'Pro' ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Top Category</span>
-                                        <span className="font-medium">Entertainment - $45.00</span>
+                                        <span className="font-medium">{stats.topCategory?.name || 'None'} - ${stats.topCategory?.amount || '0.00'}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Savings Potential</span>
-                                        <span className="font-medium text-green-600">$127/mo</span>
+                                        <span className="font-medium text-green-600">${stats.potentialMonthlySavings || '0.00'}/mo</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-500">Spending Forecast</span>
-                                        <span className="font-medium">$4,850 next month</span>
+                                        <span className="text-gray-500">Upcoming Bills</span>
+                                        <span className="font-medium">{stats.upcomingPayments?.length || 0} due soon</span>
                                     </div>
                                 </div>
                             </div>
@@ -422,23 +439,34 @@ const Dashboard = () => {
                                     <div className="p-2.5 bg-emerald-50 text-emerald-500 rounded-xl">
                                         <DollarSign size={20} />
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Revenue Tracked</p>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-medium text-gray-500">Revenue Tracked</p>
+                                            <button
+                                                onClick={() => setIncomeModalOpen(true)}
+                                                className="p-1 hover:bg-emerald-50 text-emerald-600 rounded-md transition-colors"
+                                                title="Add Income"
+                                            >
+                                                <Plus size={14} />
+                                            </button>
+                                        </div>
                                         <div className="flex items-baseline gap-2">
                                             <span className="text-3xl font-black text-gray-900">
-                                                $<CountUp end={12450} duration={2.5} />
+                                                $<CountUp end={parseFloat(stats.totalMonthlyRevenue) || 0} duration={2.5} />
                                             </span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-100">
-                                    <TrendingUp size={14} className="text-emerald-600" />
-                                    <span className="text-sm font-bold text-emerald-700">↑ 8%</span>
-                                    <span className="text-xs text-emerald-600/70">vs last month</span>
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${parseFloat(stats.revenueTrend) >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                                    <TrendingUp size={14} className={parseFloat(stats.revenueTrend) >= 0 ? 'text-emerald-600' : 'text-red-600'} />
+                                    <span className={`text-sm font-bold ${parseFloat(stats.revenueTrend) >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                                        {parseFloat(stats.revenueTrend)}%
+                                    </span>
+                                    <span className={`text-xs ${parseFloat(stats.revenueTrend) >= 0 ? 'text-emerald-600/70' : 'text-red-600/70'}`}>vs last month</span>
                                 </div>
                             </div>
 
-                            {/* Locked Advanced Insights */}
+                            {/* Advanced Insights */}
                             <div className="relative mt-4 pt-4 border-t border-gray-100">
                                 {stats.user?.plan !== 'Pro' && (
                                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
@@ -448,18 +476,20 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 )}
-                                <div className="space-y-2 opacity-50">
+                                <div className={`space-y-2 ${stats.user?.plan !== 'Pro' ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Income Sources</span>
-                                        <span className="font-medium">3 tracked</span>
+                                        <span className="font-medium">{stats.incomeCount || 0} tracked</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Net Cash Flow</span>
-                                        <span className="font-medium text-emerald-600">+$8,250/mo</span>
+                                        <span className={`font-medium ${parseFloat(stats.netCashFlow) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                            {parseFloat(stats.netCashFlow) >= 0 ? '+' : ''}${stats.netCashFlow || '0.00'}/mo
+                                        </span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Financial Health</span>
-                                        <span className="font-medium">Score: 82/100</span>
+                                        <span className="font-medium">Score: {stats.financialHealthScore || 0}/100</span>
                                     </div>
                                 </div>
                             </div>
@@ -839,6 +869,81 @@ const Dashboard = () => {
                                             </button>
                                         </div>
                                     </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Income Modal */}
+                    <AnimatePresence>
+                        {incomeModalOpen && (
+                            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setIncomeModalOpen(false)}
+                                    className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                                />
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                    className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden p-8"
+                                >
+                                    <h2 className="text-2xl font-bold mb-6">Add Income Source</h2>
+                                    <form onSubmit={handleAddIncome} className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Source Name</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                                                placeholder="e.g. Salary, Freelance"
+                                                value={newIncome.name}
+                                                onChange={e => setNewIncome({ ...newIncome, name: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Amount</label>
+                                            <input
+                                                type="number"
+                                                required
+                                                className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                                                placeholder="0.00"
+                                                value={newIncome.amount}
+                                                onChange={e => setNewIncome({ ...newIncome, amount: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                            <select
+                                                className="w-full px-4 py-2 border rounded-xl outline-none"
+                                                value={newIncome.category}
+                                                onChange={e => setNewIncome({ ...newIncome, category: e.target.value })}
+                                            >
+                                                <option>Salary</option>
+                                                <option>Freelance</option>
+                                                <option>Investment</option>
+                                                <option>Other</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex gap-4 pt-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIncomeModalOpen(false)}
+                                                className="flex-1 py-3 border rounded-xl font-bold hover:bg-gray-50 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors"
+                                            >
+                                                Add Income
+                                            </button>
+                                        </div>
+                                    </form>
                                 </motion.div>
                             </div>
                         )}
