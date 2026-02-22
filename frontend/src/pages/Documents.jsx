@@ -185,7 +185,7 @@ const Documents = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text-main mb-1">Documents</h1>
                     <p className="text-text-muted text-sm">Manage and organize your critical life documents.</p>
@@ -248,9 +248,9 @@ const Documents = () => {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden"
                     >
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-t-2xl">
+                        <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white">
                             <div>
                                 <h2 className="text-xl font-bold flex items-center gap-2">
                                     <FileText size={20} />
@@ -266,7 +266,7 @@ const Documents = () => {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                             {/* Summary Section */}
                             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                                 <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">

@@ -165,7 +165,7 @@ const Subscriptions = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text-main mb-1">Subscriptions</h1>
                     <p className="text-text-muted text-sm">Track recurring expenses and renewal dates.</p>
@@ -340,7 +340,7 @@ const Subscriptions = () => {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+                        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4 sm:p-6"
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-text-main">{isEditMode ? 'Edit Subscription' : 'Add Subscription'}</h2>
@@ -441,7 +441,7 @@ const Subscriptions = () => {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-0 overflow-hidden"
+                        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-0 flex flex-col max-h-[95vh] overflow-hidden"
                     >
                         <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6 text-white relative">
                             <button
@@ -468,7 +468,7 @@ const Subscriptions = () => {
                             </div>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                             {/* Renewal Alert Banner */}
                             {getRenewalStatus(previewSubscription) && (
                                 <div className={`p-3 rounded-xl border flex items-center gap-2 ${getRenewalStatus(previewSubscription).color}`}>

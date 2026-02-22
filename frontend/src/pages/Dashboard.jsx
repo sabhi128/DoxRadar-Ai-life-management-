@@ -55,6 +55,7 @@ const Dashboard = () => {
         subscriptionCount: 0,
         user: { plan: 'Free' }
     });
+    const localUser = JSON.parse(localStorage.getItem('user') || '{}');
     const [refreshKey, setRefreshKey] = useState(0);
     const [activityLog, setActivityLog] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -152,13 +153,13 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="space-y-8 p-2">
+        <div className="space-y-10">
             {/* Hero Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="w-full bg-gradient-to-r from-blue-900 to-indigo-900 rounded-3xl p-8 md:p-12 text-center text-white shadow-2xl relative overflow-hidden mb-12"
+                className="w-full bg-gradient-to-r from-blue-900 via-indigo-900 to-indigo-950 rounded-[2.5rem] p-6 sm:p-10 md:p-14 text-center text-white shadow-2xl relative overflow-hidden mb-8 md:mb-12"
             >
                 {/* Background Effect */}
                 <div className="absolute inset-0 opacity-20 pointer-events-none">
@@ -172,7 +173,7 @@ const Dashboard = () => {
                     </span>
 
                     {/* Main Headline */}
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-blue-200 drop-shadow-sm">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.15] mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-blue-200 drop-shadow-sm">
                         We Handle the Calls, the Bills, and the Bureaucracy - So You Don’t Have To.
                     </h1>
 
@@ -191,7 +192,7 @@ const Dashboard = () => {
                             }}
                             className="px-8 py-4 bg-white text-blue-900 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-blue-900/20 transform hover:-translate-y-1 w-full sm:w-auto"
                         >
-                            {stats.user?.plan === 'Pro' ? 'Manage Pro Plan' : 'Start Free Trial'}
+                            {stats.user?.plan === 'Pro' && localUser?.plan === 'Pro' ? 'Manage Pro Plan' : 'Start Free Trial'}
                         </button>
                         <button
                             onClick={() => setHowItWorksOpen(true)}
@@ -407,7 +408,7 @@ const Dashboard = () => {
 
                             {/* Advanced Insights */}
                             <div className="relative mt-4 pt-4 border-t border-gray-100">
-                                {stats.user?.plan !== 'Pro' && (
+                                {(stats.user?.plan !== 'Pro' || localUser?.plan !== 'Pro') && (
                                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
                                         <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
                                             <Lock size={12} />
@@ -415,7 +416,7 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 )}
-                                <div className={`space-y-2 ${stats.user?.plan !== 'Pro' ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className={`space-y-2 ${(stats.user?.plan !== 'Pro' || localUser?.plan !== 'Pro') ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Top Category</span>
                                         <span className="font-medium">{stats.topCategory?.name || 'None'} - ${stats.topCategory?.amount || '0.00'}</span>
@@ -468,7 +469,7 @@ const Dashboard = () => {
 
                             {/* Advanced Insights */}
                             <div className="relative mt-4 pt-4 border-t border-gray-100">
-                                {stats.user?.plan !== 'Pro' && (
+                                {(stats.user?.plan !== 'Pro' || localUser?.plan !== 'Pro') && (
                                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
                                         <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-full text-xs font-bold shadow-lg">
                                             <Lock size={12} />
@@ -476,7 +477,7 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 )}
-                                <div className={`space-y-2 ${stats.user?.plan !== 'Pro' ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className={`space-y-2 ${(stats.user?.plan !== 'Pro' || localUser?.plan !== 'Pro') ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Income Sources</span>
                                         <span className="font-medium">{stats.incomeCount || 0} tracked</span>
@@ -501,7 +502,7 @@ const Dashboard = () => {
                         variants={containerVariants}
                         initial="hidden"
                         animate="show"
-                        className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
                     >
                         {/* Widget 1: Life Balance Overview (Radar Chart) */}
                         < motion.div

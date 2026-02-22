@@ -76,9 +76,11 @@ const protect = asyncHandler(async (req, res, next) => {
             // Fetch plan via raw SQL to bypass stale Prisma client if needed
             try {
                 const planResult = await prisma.$queryRaw`SELECT plan FROM "User" WHERE id = ${userId} LIMIT 1`;
-                localUser.plan = planResult[0]?.plan || 'Free';
+                const finalPlan = planResult[0]?.plan || 'Free';
+                console.log(`[AUTH] User ${userId} plan from DB:`, finalPlan);
+                localUser.plan = finalPlan;
             } catch (rawError) {
-                console.warn('Fallback plan fetching failed:', rawError.message);
+                console.warn('[AUTH] Fallback plan fetching failed:', rawError.message);
                 localUser.plan = localUser.plan || 'Free';
             }
 

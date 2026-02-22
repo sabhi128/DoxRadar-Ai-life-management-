@@ -7,6 +7,14 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 import Logo from '../assets/Logo.jpeg';
 
+// Static navigation links to ensure stable rendering
+const NAV_LINKS = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Documents', path: '/documents', icon: FileText },
+    { name: 'Subscriptions', path: '/subscriptions', icon: CreditCard },
+    { name: 'Life Audit', path: '/life-audit', icon: Activity },
+];
+
 const Navbar = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -17,9 +25,16 @@ const Navbar = () => {
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [notifLoading, setNotifLoading] = useState(false);
-    // Modal state is now handled globally via AuthContext
+
+    // Global toggle for all mobile menus
+    const closeAllMenus = () => {
+        setIsMobileMenuOpen(false);
+        setIsNotifOpen(false);
+        setIsProfileOpen(false);
+    };
 
     const dropdownRef = useRef(null);
     const notifRef = useRef(null);
@@ -31,12 +46,6 @@ const Navbar = () => {
         highCostThreshold: 50.0
     });
 
-    const navLinks = [
-        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { name: 'Documents', path: '/documents', icon: FileText },
-        { name: 'Subscriptions', path: '/subscriptions', icon: CreditCard },
-        { name: 'Life Audit', path: '/life-audit', icon: Activity },
-    ];
 
     // Fetch notifications from dashboard stats
     const fetchNotifications = async () => {
@@ -146,6 +155,30 @@ const Navbar = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Close mobile menu on Esc
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') setIsMobileMenuOpen(false);
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
+    // Close all menus when location changes (User navigated)
+    useEffect(() => {
+        closeAllMenus();
+    }, [location.pathname]);
+
+    // Lock scroll when mobile menu is open
+    useEffect(() => {
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isMobileMenuOpen]);
+
     // Fetch user preferences
     const fetchPreferences = async () => {
         try {
@@ -247,7 +280,7 @@ const Navbar = () => {
 
                         {/* Desktop Navigation */}
                         <div className="hidden md:flex items-center gap-1 bg-gray-100/50 p-1 rounded-full border border-gray-100">
-                            {navLinks.map((link) => {
+                            {NAV_LINKS.map((link) => {
                                 const isActive = location.pathname === link.path;
                                 return (
                                     <Link
@@ -267,7 +300,7 @@ const Navbar = () => {
                     </div>
 
                     {/* Right Actions */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4">
                         {/* Search Bar - Desktop */}
                         <div className="relative hidden lg:block group">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={18} />
@@ -284,7 +317,13 @@ const Navbar = () => {
                         {/* Notifications Bell */}
                         <div className="relative" ref={notifRef}>
                             <button
-                                onClick={() => { setIsNotifOpen(!isNotifOpen); setIsProfileOpen(false); }}
+                                onClick={() => {
+                                    const newState = !isNotifOpen;
+                                    setIsNotifOpen(newState);
+                                    setIsProfileOpen(false);
+                                    setIsMobileMenuOpen(false);
+                                    if (newState) fetchNotifications();
+                                }}
                                 className="relative p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors"
                             >
                                 <Bell size={20} />
@@ -297,20 +336,21 @@ const Navbar = () => {
                             <AnimatePresence>
                                 {isNotifOpen && (
                                     <motion.div
+                                        key="notif-panel"
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                         transition={{ duration: 0.2 }}
-                                        className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/5"
+                                        className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-20 sm:top-full mt-2 sm:w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/5 z-[100]"
                                     >
-                                        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                                        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                                             <h3 className="font-bold text-gray-800">Notifications</h3>
                                             <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
                                                 {notifications.length}
                                             </span>
                                         </div>
 
-                                        <div className="max-h-80 overflow-y-auto">
+                                        <div className="max-h-80 overflow-y-auto bg-white">
                                             {notifLoading ? (
                                                 <div className="flex justify-center py-8">
                                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -340,7 +380,7 @@ const Navbar = () => {
                                         </div>
 
                                         {notifications.length > 0 && (
-                                            <div className="p-3 border-t border-gray-100">
+                                            <div className="p-3 border-t border-gray-100 bg-white">
                                                 <button
                                                     onClick={() => { navigate('/life-audit'); setIsNotifOpen(false); }}
                                                     className="w-full text-center text-sm font-medium text-primary hover:text-primary-dark transition-colors"
@@ -357,7 +397,11 @@ const Navbar = () => {
                         {/* User Profile Dropdown */}
                         <div className="relative" ref={dropdownRef}>
                             <button
-                                onClick={() => { setIsProfileOpen(!isProfileOpen); setIsNotifOpen(false); }}
+                                onClick={() => {
+                                    setIsProfileOpen(!isProfileOpen);
+                                    setIsNotifOpen(false);
+                                    setIsMobileMenuOpen(false);
+                                }}
                                 className="flex items-center gap-3 pl-2 pr-1 py-1 rounded-full hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-all group"
                             >
                                 <div className="text-right hidden sm:block mr-1">
@@ -380,11 +424,12 @@ const Navbar = () => {
                             <AnimatePresence>
                                 {isProfileOpen && (
                                     <motion.div
+                                        key="profile-dropdown"
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                         transition={{ duration: 0.2 }}
-                                        className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/5"
+                                        className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-20 sm:top-full mt-2 sm:w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/5 z-[100]"
                                     >
                                         <div className="p-4 bg-gray-50/50 border-b border-gray-100">
                                             <div className="flex items-center gap-3">
@@ -398,7 +443,7 @@ const Navbar = () => {
                                             </div>
                                         </div>
 
-                                        <div className="p-2 space-y-1">
+                                        <div className="p-2 space-y-1 bg-white">
                                             <button
                                                 onClick={() => { setIsProfileOpen(false); setGlobalModal('settings'); }}
                                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
@@ -423,7 +468,7 @@ const Navbar = () => {
                                             </button>
                                         </div>
 
-                                        <div className="p-2 border-t border-gray-100">
+                                        <div className="p-2 border-t border-gray-100 bg-white">
                                             <button
                                                 onClick={() => { setIsProfileOpen(false); setGlobalModal('help'); }}
                                                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
@@ -443,9 +488,123 @@ const Navbar = () => {
                                 )}
                             </AnimatePresence>
                         </div>
+
+                        <button
+                            onClick={() => {
+                                if (isMobileMenuOpen) {
+                                    closeAllMenus();
+                                } else {
+                                    setIsMobileMenuOpen(true);
+                                    setIsNotifOpen(false);
+                                    setIsProfileOpen(false);
+                                }
+                            }}
+                            className={`md:hidden p-2 rounded-xl transition-all duration-200 ${isMobileMenuOpen ? 'text-red-500 bg-red-50' : 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'} z-[100]`}
+                            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                        >
+                            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        </button>
                     </div>
                 </div>
             </nav>
+
+            {/* Mobile Menu Drawer - High-level isolation for priority */}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        key="mobile-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={closeAllMenus}
+                        className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-[9000] md:hidden"
+                    />
+                )}
+                {isMobileMenuOpen && (
+                    <motion.div
+                        key="mobile-drawer"
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        className="fixed right-0 top-0 h-full w-full max-w-[300px] bg-white z-[9001] md:hidden shadow-2xl overflow-hidden flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white flex-shrink-0">
+                            <div className="flex items-center gap-3 font-bold text-lg text-blue-600">
+                                <img src={Logo} alt="Logo" className="h-8 w-8 rounded-lg" />
+                                <span>DOXRADAR</span>
+                            </div>
+                            <button
+                                onClick={closeAllMenus}
+                                className="p-2 hover:bg-gray-100 rounded-full text-gray-400 active:scale-95 transition-all"
+                                aria-label="Close menu"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-y-auto bg-white overscroll-contain">
+                            <div className="p-4 pt-6">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-4">Main Navigation</p>
+                                <div className="space-y-1">
+                                    {(NAV_LINKS || []).map((link) => {
+                                        const isActive = link.path === location.pathname;
+                                        const LinkIcon = link.icon;
+                                        return (
+                                            <Link
+                                                key={`mob-link-nav-${link.path}`}
+                                                to={link.path}
+                                                className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all border outline-none ${isActive
+                                                    ? 'bg-blue-50 border-blue-100 text-blue-600 font-bold shadow-sm'
+                                                    : 'border-transparent text-gray-600 hover:bg-gray-50 active:bg-gray-100'
+                                                    }`}
+                                            >
+                                                {LinkIcon && <LinkIcon size={22} className={isActive ? 'text-blue-600' : 'text-gray-400'} />}
+                                                <span className="text-base">{link.name}</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="px-4 py-8 border-t border-gray-100 mt-4 bg-white">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 mb-4">Your Account</p>
+                                <div className="mx-4 p-5 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <div className="flex items-center gap-3 mb-5">
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+                                            {String(userName || "U").charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-gray-900 truncate text-sm">{userName || 'User'}</p>
+                                            <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight">{localUser?.plan || 'Free'} Plan</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => { closeAllMenus(); setGlobalModal('billing'); }}
+                                        className="w-full py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                                    >
+                                        <CreditCard size={16} />
+                                        Manage Plan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 bg-gray-50 border-t border-gray-100 flex-shrink-0">
+                            <button
+                                onClick={() => { closeAllMenus(); handleLogout(); }}
+                                className="w-full flex items-center justify-center gap-3 py-4 text-red-600 bg-white border border-red-200 rounded-2xl font-bold hover:bg-red-50 transition-all shadow-sm active:scale-[0.98]"
+                            >
+                                <LogOut size={20} />
+                                Sign Out
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ========== MODALS ========== */}
             <AnimatePresence>

@@ -105,14 +105,14 @@ const LifeAudit = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text-main mb-1">Life Audit</h1>
                     <p className="text-text-muted text-sm">
                         {report ? `Report for ${report.month}` : 'Your monthly intelligence report'}
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <button
                         onClick={() => setActiveTab('report')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'report'
@@ -169,7 +169,7 @@ const LifeAudit = () => {
                             </motion.div>
 
                             {/* KPI Row */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                                 {[
                                     {
                                         label: 'Monthly Spend',
@@ -404,7 +404,7 @@ const LifeAudit = () => {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.6 }}
-                                    className="card p-6 lg:col-span-2"
+                                    className="card p-6 md:col-span-2 lg:col-span-2"
                                 >
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className={`p-2.5 rounded-xl ${report.documentsAttention.totalNeedingAttention > 0 ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-400'}`}>

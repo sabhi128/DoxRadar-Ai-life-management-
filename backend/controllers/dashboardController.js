@@ -352,6 +352,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
         statusColor: doc.analysis ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
     }));
 
+    const isPro = req.user.plan === 'Pro';
+
     res.status(200).json({
         user: {
             plan: req.user.plan || 'Free'
@@ -362,10 +364,12 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
             totalMonthlyRevenue: totalMonthlyRevenue.toFixed(2),
             expenseTrend: expenseTrend.toFixed(1),
             revenueTrend: revenueTrend.toFixed(1),
-            netCashFlow: netCashFlow.toFixed(2),
-            financialHealthScore: Math.round(financialHealthScore),
-            topCategory,
-            potentialMonthlySavings: potentialMonthlySavings.toFixed(2),
+            // Premium only fields
+            netCashFlow: isPro ? netCashFlow.toFixed(2) : '0.00',
+            financialHealthScore: isPro ? Math.round(financialHealthScore) : 0,
+            topCategory: isPro ? topCategory : { name: 'Locked', amount: '0.00' },
+            potentialMonthlySavings: isPro ? potentialMonthlySavings.toFixed(2) : '0.00',
+
             nextBill: nextBill ? { name: nextBill.name, amount: nextBill.price, date: nextBill.nextPayment } : null,
             lifeAudit: latestAudit ? latestAudit.ratings : null,
             subscriptionCount: subscriptions.length,
