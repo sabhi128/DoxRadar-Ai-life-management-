@@ -145,7 +145,8 @@ const Subscriptions = () => {
     // --- Helper: is high-cost ---
     const isHighCost = (sub) => {
         const price = parseFloat(sub.price);
-        const monthly = sub.billingCycle === 'Monthly' ? price : price / 12;
+        const period = sub.period || sub.billingCycle;
+        const monthly = period === 'Monthly' ? price : price / 12;
         return monthly >= HIGH_COST_THRESHOLD;
     };
 
