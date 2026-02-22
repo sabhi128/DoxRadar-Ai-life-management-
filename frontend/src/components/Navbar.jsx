@@ -328,7 +328,9 @@ const Navbar = () => {
                             >
                                 <Bell size={20} />
                                 {notifications.length > 0 && (
-                                    <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold h-5 w-5 min-w-[20px] min-h-[20px] rounded-full flex items-center justify-center border-2 border-white shadow-sm transition-transform hover:scale-110">
+                                        {notifications.length}
+                                    </span>
                                 )}
                             </button>
 
