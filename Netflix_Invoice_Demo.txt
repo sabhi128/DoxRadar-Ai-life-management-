@@ -1,0 +1,15 @@
+NETFLIX INVOICE
+Invoice #NFLX-2026-042
+Date: February 20, 2026
+
+Bill To: Test User (test6@example.com)
+
+SUBSCRIPTION DETAILS:
+Plan: Premium Ultra HD (4 Screens)
+Price: $22.99
+Period: Monthly
+Currency: USD
+
+Next Billing Date: March 20, 2026
+
+Your subscription will automatically renew on March 20, 2026. Thank you for choosing Netflix!

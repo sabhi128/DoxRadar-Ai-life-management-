@@ -8,6 +8,7 @@ const HIGH_COST_THRESHOLD = 50; // Monthly equivalent > $50
 
 const Subscriptions = () => {
     const [subscriptions, setSubscriptions] = useState([]);
+    const [preferences, setPreferences] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -30,15 +31,27 @@ const Subscriptions = () => {
         try {
             const { data } = await api.get('/subscriptions');
             setSubscriptions(data);
-            setLoading(false);
         } catch (error) {
             toast.error('Failed to load subscriptions');
-            setLoading(false);
+        }
+    };
+
+    const fetchPreferences = async () => {
+        try {
+            const { data } = await api.get('/users/preferences');
+            setPreferences(data);
+        } catch (error) {
+            console.error('Failed to load preferences');
         }
     };
 
     useEffect(() => {
-        fetchSubscriptions();
+        const init = async () => {
+            setLoading(true);
+            await Promise.all([fetchSubscriptions(), fetchPreferences()]);
+            setLoading(false);
+        };
+        init();
     }, []);
 
     const handleChange = (e) => {
@@ -144,10 +157,11 @@ const Subscriptions = () => {
 
     // --- Helper: is high-cost ---
     const isHighCost = (sub) => {
+        const threshold = preferences?.highCostThreshold || 50;
         const price = parseFloat(sub.price);
         const period = sub.period || sub.billingCycle;
         const monthly = period === 'Monthly' ? price : price / 12;
-        return monthly >= HIGH_COST_THRESHOLD;
+        return monthly >= threshold;
     };
 
     const containerVariants = {
@@ -223,7 +237,7 @@ const Subscriptions = () => {
                     </div>
                     <div className={`text-3xl font-bold ${highCostCount > 0 ? '' : 'text-gray-800'}`}>{highCostCount}</div>
                     <p className={`text-xs mt-1 ${highCostCount > 0 ? 'text-white/70' : 'text-gray-400'}`}>
-                        {highCostCount > 0 ? `Over $${HIGH_COST_THRESHOLD}/mo each` : 'No high-cost subscriptions'}
+                        {highCostCount > 0 ? `Over $${preferences?.highCostThreshold || 50}/mo each` : 'No high-cost subscriptions'}
                     </p>
                 </motion.div>
 

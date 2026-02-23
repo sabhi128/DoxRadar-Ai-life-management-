@@ -8,7 +8,7 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 // Categories the AI can assign
 const VALID_CATEGORIES = [
     'Contract', 'Insurance', 'ID', 'Bill', 'Legal',
-    'Medical', 'Financial', 'Personal', 'Certificate', 'Other'
+    'Medical', 'Financial', 'Personal', 'Certificate', 'Subscription', 'Other'
 ];
 
 // Log API key status at module load (helps debug Vercel env issues)
@@ -114,6 +114,13 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
   "suggestedCategory": "One of: ${VALID_CATEGORIES.join(', ')}",
   "expiryDate": "YYYY-MM-DD or null",
   "renewalDate": "YYYY-MM-DD or null",
+  "isSubscription": "boolean (true if this document represents a recurring service/subscription)",
+  "subscriptionDetails": {
+    "name": "string (service name, e.g., Netflix)",
+    "price": "number (the recurring cost)",
+    "period": "string ('Monthly' or 'Yearly')",
+    "currency": "string (e.g., USD)"
+  },
   "risks": ["List of risks, dangerous terms, or important obligations"],
   "tags": ["Relevant tags for categorization"]
 }`;

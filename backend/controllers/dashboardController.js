@@ -9,7 +9,7 @@ const prisma = require('../prismaClient');
 // @access  Private
 const getDashboardStats = asyncHandler(async (req, res) => {
     // Run independent queries in parallel for performance
-    const [totalDocs, subscriptions, latestAudit, allDocsLight] = await Promise.all([
+    const [totalDocs, subscriptions, latestAudit, allDocsLight, preferences] = await Promise.all([
         prisma.document.count({ where: { userId: req.user.id } }),
         prisma.subscription.findMany({ where: { userId: req.user.id } }),
         prisma.lifeAudit.findFirst({
@@ -20,8 +20,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         prisma.document.findMany({
             where: { userId: req.user.id },
             select: { id: true, name: true, category: true, analysis: true }
-        })
+        }),
+        prisma.userPreference.findUnique({ where: { userId: req.user.id } })
     ]);
+
+    const threshold = preferences?.highCostThreshold || 50.0;
 
     const totalMonthlyCost = subscriptions.reduce((acc, sub) => {
         const price = parseFloat(sub.price) || 0;
@@ -54,8 +57,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             daysLeft: Math.ceil((sub.nextDate - today) / (1000 * 60 * 60 * 24))
         }));
 
-    // High-cost subscriptions (monthly equivalent > $50)
-    const HIGH_COST_THRESHOLD = 50;
+    // High-cost subscriptions (monthly equivalent > threshold)
+    const HIGH_COST_THRESHOLD = threshold;
     const highCostSubscriptions = subscriptions
         .filter(sub => {
             const monthly = sub.period === 'Monthly' ? sub.price : sub.price / 12;
@@ -172,7 +175,7 @@ const getRecentActivity = asyncHandler(async (req, res) => {
 const getDashboardSummary = asyncHandler(async (req, res) => {
     const today = new Date();
     // Run core queries in parallel
-    const [subscriptions, latestAudit, allDocs, incomes] = await Promise.all([
+    const [subscriptions, latestAudit, allDocs, incomes, preferences] = await Promise.all([
         prisma.subscription.findMany({ where: { userId: req.user.id } }),
         prisma.lifeAudit.findFirst({
             where: { userId: req.user.id },
@@ -183,8 +186,11 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
             orderBy: { createdAt: 'desc' },
             select: { id: true, name: true, category: true, analysis: true, createdAt: true }
         }),
-        prisma.income.findMany({ where: { userId: req.user.id } })
+        prisma.income.findMany({ where: { userId: req.user.id } }),
+        prisma.userPreference.findUnique({ where: { userId: req.user.id } })
     ]);
+
+    const threshold = preferences?.highCostThreshold || 50.0;
 
     // 1. Process Stats
     // Expenses
@@ -227,7 +233,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     const netCashFlow = totalMonthlyRevenue - currentMonthlyCost;
 
     // Advanced Expense Analysis
-    const HIGH_COST_THRESHOLD = 50;
+    const HIGH_COST_THRESHOLD = threshold;
     const flaggedSubscriptions = subscriptions.filter(sub => {
         const monthly = sub.period === 'Monthly' ? sub.price : sub.price / 12;
         return monthly >= HIGH_COST_THRESHOLD;

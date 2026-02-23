@@ -93,6 +93,31 @@ const uploadDocument = asyncHandler(async (req, res) => {
                     data: updateData,
                 });
 
+                // Auto-log subscription if detected
+                if (analysis.isSubscription === true || analysis.isSubscription === 'true') {
+                    console.log(`[AutoLog] Detected subscription in document: ${doc.name}`);
+                    const subData = analysis.subscriptionDetails || {};
+
+                    try {
+                        await prisma.subscription.create({
+                            data: {
+                                userId: req.user.id,
+                                name: subData.name || doc.name.split('.')[0],
+                                price: parseFloat(subData.price) || 0,
+                                currency: subData.currency || 'USD',
+                                period: subData.period || 'Monthly',
+                                category: analysis.suggestedCategory || 'General',
+                                startDate: new Date(),
+                                nextPayment: new Date(analysis.renewalDate || analysis.expiryDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+                                status: 'Active'
+                            }
+                        });
+                        console.log(`[AutoLog] Successfully created subscription for ${subData.name}`);
+                    } catch (subErr) {
+                        console.error("[AutoLog] Error creating subscription:", subErr.message);
+                    }
+                }
+
                 const updatedDoc = await prisma.document.findUnique({ where: { id: doc.id } });
                 return res.status(201).json(updatedDoc);
             } catch (error) {

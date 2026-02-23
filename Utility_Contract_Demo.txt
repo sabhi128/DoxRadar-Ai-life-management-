@@ -1,0 +1,13 @@
+WATER SERVICES AGREEMENT
+Customer: John Doe
+Account Number: WTR-778899
+Service Address: 123 Maple St, Springfield
+
+TERMS AND CONDITIONS
+1. Service period: 12 months, auto-renewing.
+2. Monthly Base Rate: $45.00
+3. Billing Cycle: Monthly
+4. Effective Date: 2026-01-01
+5. Renewal Date: 2027-01-01
+
+This contract governs the supply of water and sewage services to the stated address. The customer agrees to pay the monthly base rate plus usage.
