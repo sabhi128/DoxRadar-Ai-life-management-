@@ -92,6 +92,22 @@ const Dashboard = () => {
     }, [openActionId]);
 
     useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('gmail') === 'connected') {
+            toast.success("Gmail successfully connected! We are now monitoring your inbox.", {
+                duration: 5000,
+                icon: '🚀'
+            });
+            // Clean up URL
+            window.history.replaceState({}, document.title, "/dashboard");
+        }
+        if (urlParams.get('error') === 'gmail_auth_failed') {
+            toast.error("Gmail connection failed. Please try again.");
+            window.history.replaceState({}, document.title, "/dashboard");
+        }
+    }, []);
+
+    useEffect(() => {
         const fetchData = async () => {
             try {
                 // Fetch consolidated summary (stats + activity) in one call
@@ -200,6 +216,50 @@ const Dashboard = () => {
                         >
                             See How It Works
                         </button>
+
+                        {/* Gmail Connection & Disconnection */}
+                        {stats.user?.isGmailConnected ? (
+                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-4 sm:mt-0 justify-center">
+                                <button
+                                    className="px-6 py-4 rounded-xl font-bold text-md sm:text-lg transition-all flex items-center justify-center gap-2 bg-green-500/10 border border-green-500/30 text-green-400 cursor-default shadow-lg"
+                                >
+                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Gmail Monitoring Active
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (window.confirm("Are you sure you want to disconnect Gmail? DoxRadar will no longer monitor your inbox.")) {
+                                            try {
+                                                await api.post('/auth/google/disconnect');
+                                                toast.success("Gmail disconnected successfully!");
+                                                // Trigger a dashboard re-fetch to update the UI
+                                                setRefreshKey(prev => prev + 1);
+                                            } catch (error) {
+                                                toast.error("Failed to disconnect Gmail.");
+                                            }
+                                        }
+                                    }}
+                                    className="px-6 py-4 rounded-xl font-bold text-md sm:text-lg transition-all flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 shadow-lg"
+                                >
+                                    Disconnect
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const { data } = await api.get('/auth/google');
+                                        if (data.url) {
+                                            window.location.href = data.url;
+                                        }
+                                    } catch (error) {
+                                        toast.error("Failed to start Gmail connection");
+                                    }
+                                }}
+                                className="px-8 py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1 w-full sm:w-auto shadow-lg bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-red-900/20 mt-4 sm:mt-0"
+                            >
+                                <Zap className="w-5 h-5" /> Connect Gmail
+                            </button>
+                        )}
                     </div>
 
                     {/* Trust Line */}

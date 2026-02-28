@@ -18,6 +18,17 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Apply rate limiting to all requests
+const rateLimit = require('express-rate-limit');
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 150, // Limit each IP to 150 requests per windowMs
+    message: { message: 'Too many requests from this IP, please try again after 15 minutes.' },
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use('/api', apiLimiter);
+
 // CSP to allow Supabase images/PDFs
 app.use((req, res, next) => {
     res.setHeader(
@@ -57,11 +68,18 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 app.use(errorHandler);
 
 
+const { runIngestionCycle } = require('./services/ingestionService');
+
 const PORT = process.env.PORT || 5000;
 
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+
+        // Start autonomous ingestion engine
+        // Run once on start then every 10 minutes
+        setTimeout(() => runIngestionCycle(), 5000); // 5s delay on start
+        setInterval(runIngestionCycle, 10 * 60 * 1000);
     });
 }
 

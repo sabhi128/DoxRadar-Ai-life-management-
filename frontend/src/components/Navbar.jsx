@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, CreditCard, Activity, Search, Bell, Menu, ChevronDown, User, Settings, LogOut, HelpCircle, X, Clock, FileWarning, AlertTriangle, Shield } from 'lucide-react';
+import { LayoutDashboard, FileText, CreditCard, Activity, Search, Bell, Menu, ChevronDown, User, Settings, LogOut, HelpCircle, X, Clock, FileWarning, AlertTriangle, Shield, Zap, MessageSquare, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
@@ -107,6 +107,33 @@ const Navbar = () => {
                     title: `${data.highCostSubscriptions.length} high-cost subscription${data.highCostSubscriptions.length > 1 ? 's' : ''} flagged`,
                     subtitle: 'Review in Subscriptions',
                     action: () => navigate('/subscriptions'),
+                });
+            }
+
+            // Persistent Autonomous Notifications (Stage 5/6)
+            if (data.notifications?.length > 0) {
+                data.notifications.forEach(notif => {
+                    let Icon = Info;
+                    if (notif.type === 'danger') Icon = Shield;
+                    if (notif.type === 'warning') Icon = Zap;
+                    if (notif.type === 'success') Icon = MessageSquare;
+
+                    notifs.push({
+                        id: notif.id,
+                        type: notif.type,
+                        icon: Icon,
+                        title: notif.title,
+                        subtitle: notif.message,
+                        isPersistent: true,
+                        action: async () => {
+                            try {
+                                await api.put(`/dashboard/notifications/${notif.id}/read`);
+                                fetchNotifications(); // Refresh
+                            } catch (err) {
+                                console.error("Failed to mark notification as read");
+                            }
+                        }
+                    });
                 });
             }
 

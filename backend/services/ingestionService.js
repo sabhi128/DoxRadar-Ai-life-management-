@@ -1,0 +1,231 @@
+const { fetchUnreadEmails, updateLastIngestion } = require('./gmailService');
+const { analyzeDocument } = require('./aiService');
+const { autoLogSubscription } = require('./subscriptionService');
+const { createNotification } = require('./notificationService');
+const prisma = require('../prismaClient');
+const supabase = require('../config/supabase');
+const path = require('path');
+
+// Helper to format bytes
+const formatBytes = (bytes, decimals = 2) => {
+    if (!+bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+};
+
+/**
+ * Main autonomous ingestion loop.
+ * Fetches unread emails for all connected users and processes them with AI.
+ */
+const runIngestionCycle = async () => {
+    console.log(`[IngestionEngine] Starting cycle at ${new Date().toISOString()}`);
+
+    try {
+        // 1. Get all users with Gmail tokens
+        const connectedUsers = await prisma.gmailToken.findMany({
+            select: { userId: true, email: true }
+        });
+
+        console.log(`[IngestionEngine] Processing ${connectedUsers.length} connected users.`);
+
+        for (const userRecord of connectedUsers) {
+            const { userId, email } = userRecord;
+            console.log(`[IngestionEngine] Fetching for user ${email}...`);
+
+            try {
+                // 2. Fetch unread emails
+                const emails = await fetchUnreadEmails(userId);
+                console.log(`[IngestionEngine] Found ${emails.length} new messages.`);
+
+                // Fetch user preferences for threshold checks
+                const preferences = await prisma.userPreference.findUnique({
+                    where: { userId }
+                });
+                const threshold = preferences?.highCostThreshold || 50.0;
+
+                for (const emailData of emails) {
+                    try {
+                        // 2.5 Deduplication Check
+                        const existingLog = await prisma.emailLog.findUnique({
+                            where: { gmailId: emailData.id }
+                        });
+
+                        if (existingLog) {
+                            console.log(`[IngestionEngine] Skipping already processed email: ${emailData.id}`);
+                            continue;
+                        }
+
+                        // 3. Extract basic info
+                        const subject = emailData.payload.headers.find(h => h.name === 'Subject')?.value || 'No Subject';
+                        const from = emailData.payload.headers.find(h => h.name === 'From')?.value || 'Unknown Sender';
+                        const snippet = emailData.snippet;
+
+                        console.log(`[IngestionEngine] AI analyzing: "${subject}" from ${from}`);
+
+                        // 4. Handle Attachments
+                        let attachments = [];
+                        if (emailData.payload.parts) {
+                            for (const part of emailData.payload.parts) {
+                                if (part.filename && part.body && part.body.attachmentId) {
+                                    console.log(`[IngestionEngine] Found attachment: ${part.filename} (${part.mimeType})`);
+                                    const attachData = await require('./gmailService').getAttachment(userId, emailData.id, part.body.attachmentId);
+                                    if (attachData && attachData.data) {
+                                        attachments.push({
+                                            filename: part.filename,
+                                            mimeType: part.mimeType,
+                                            buffer: Buffer.from(attachData.data, 'base64')
+                                        });
+                                    }
+                                }
+                            }
+                        }
+
+                        // 5. Run AI Analysis
+                        let analysis;
+                        const supportedMimes = [
+                            'application/pdf',
+                            'image/jpeg',
+                            'image/png',
+                            'text/plain',
+                            'text/csv',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            'application/msword',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        ];
+                        const bestAttachment = attachments.find(a => supportedMimes.includes(a.mimeType) || a.mimeType.startsWith('image/'));
+
+                        if (bestAttachment) {
+                            console.log(`[IngestionEngine] Analyzing attachment: ${bestAttachment.filename}`);
+                            analysis = await analyzeDocument(bestAttachment.buffer, bestAttachment.mimeType);
+                        } else {
+                            console.log(`[IngestionEngine] No financial attachments, analyzing email body.`);
+                            const emailContent = `Subject: ${subject}\nFrom: ${from}\nSnippet: ${snippet}`;
+                            const textBuffer = Buffer.from(emailContent);
+                            analysis = await analyzeDocument(textBuffer, 'text/plain');
+                        }
+
+                        // 6. Log the email processing
+                        const emailLog = await prisma.emailLog.upsert({
+                            where: { gmailId: emailData.id },
+                            update: {
+                                subject: subject,
+                                snippet: snippet,
+                                classification: analysis.suggestedCategory,
+                                extractedData: analysis
+                            },
+                            create: {
+                                gmailId: emailData.id,
+                                userId: userId,
+                                subject: subject,
+                                sender: from,
+                                snippet: snippet,
+                                classification: analysis.suggestedCategory,
+                                extractedData: analysis
+                            }
+                        });
+
+                        // 7a. Scam Detection
+                        if (analysis.isScam || analysis.suggestedCategory === 'Scam') {
+                            await createNotification(userId, {
+                                type: 'danger',
+                                title: '🚨 Scam Detected',
+                                message: `Suspicious email found: "${subject}". Reason: ${analysis.scamReason || 'Phishing pattern detected.'}`,
+                                metadata: { gmailId: emailData.id, logId: emailLog.id }
+                            });
+                        }
+
+                        // 7b. High Cost & Recommendation
+                        const cost = parseFloat(analysis.subscriptionDetails?.price || 0);
+                        const period = analysis.subscriptionDetails?.period || 'Monthly';
+                        const monthlyCost = period === 'Monthly' ? cost : cost / 12;
+
+                        if (monthlyCost >= threshold) {
+                            await createNotification(userId, {
+                                type: 'warning',
+                                title: '💰 High Cost Detected',
+                                message: `New high-cost item found: ${analysis.subscriptionDetails?.name || 'Service'}. Cost: $${monthlyCost.toFixed(2)}/mo.`,
+                                metadata: { gmailId: emailData.id, logId: emailLog.id }
+                            });
+                        }
+
+                        if (analysis.autonomousRecommendation) {
+                            await createNotification(userId, {
+                                type: 'success',
+                                title: '🤖 Autonomous Advice',
+                                message: `Recommendation: ${analysis.autonomousRecommendation}`,
+                                metadata: { gmailId: emailData.id, logId: emailLog.id }
+                            });
+                        }
+
+                        // 7c. Auto-log subscription if detected
+                        if (analysis.suggestedCategory === 'Subscription' || analysis.isSubscription) {
+                            await autoLogSubscription(userId, analysis, `Email: ${subject}`);
+                        }
+
+                        // 6b. Save attachment to Documents
+                        // Save any valid attachment that passes the MIME filter
+                        if (bestAttachment) {
+                            console.log(`[IngestionEngine] Uploading attachment to storage: ${bestAttachment.filename}`);
+
+                            const fileExt = path.extname(bestAttachment.filename);
+                            const storageFileName = `${Date.now()}_gmail_${bestAttachment.filename.replace(/\s+/g, '-')}`;
+                            const storagePath = `user_${userId}/${storageFileName}`;
+
+                            // Upload to Supabase Storage
+                            const { data: uploadData, error: uploadError } = await supabase.storage
+                                .from('documents')
+                                .upload(storagePath, bestAttachment.buffer, {
+                                    contentType: bestAttachment.mimeType,
+                                    upsert: false
+                                });
+
+                            if (uploadError) {
+                                console.error(`[IngestionEngine] Storage upload error:`, uploadError.message);
+                            } else {
+                                // Get Public URL
+                                const { data: { publicUrl } } = supabase.storage
+                                    .from('documents')
+                                    .getPublicUrl(storagePath);
+
+                                // Create a Document record for the attachment
+                                await prisma.document.create({
+                                    data: {
+                                        userId: userId,
+                                        name: bestAttachment.filename,
+                                        category: analysis.suggestedCategory,
+                                        type: fileExt.substring(1).toUpperCase() || 'FILE',
+                                        size: formatBytes(bestAttachment.buffer.length),
+                                        path: publicUrl,
+                                        analysis: analysis
+                                    }
+                                });
+                                console.log(`[IngestionEngine] Saved attachment as Document: ${bestAttachment.filename}`);
+                            }
+                        }
+
+                    } catch (emailErr) {
+                        console.error(`[IngestionEngine] Failed to process message ${emailData.id}:`, emailErr.message);
+                    }
+                } // end email loop
+
+                // 8. Update last ingestion time ONLY if this user's cycle succeeded
+                await updateLastIngestion(userId);
+
+            } catch (userErr) {
+                console.error(`[IngestionEngine] Skipping user ${email} due to error:`, userErr.message);
+            }
+        } // end connectedUsers loop
+
+    } catch (error) {
+        console.error(`[IngestionEngine] Cycle failed globally:`, error.message);
+    }
+
+    console.log(`[IngestionEngine] Cycle finished.`);
+};
+
+module.exports = {
+    runIngestionCycle
+};

@@ -1,0 +1,19 @@
+Subject: FINAL WARNING: Your Microsoft Office 365 Account Will Be Suspended
+From: Microsoft Security Team <billing-update-alert-992@verify-web-secure.com>
+
+Dear Customer,
+
+We have detected unusual sign-in activity on your Office 365 account from an unrecognized device in Russia. 
+
+Due to multiple failed login attempts, your account has been temporarily restricted for your safety. To restore full access and prevent permanent suspension, you must verify your identity immediately.
+
+If you do not verify your account within the next 24 hours, all your stored emails, OneDrive files, and contacts will be permanently deleted.
+
+Click the secure link below to verify your account now:
+http://bit.ly/ms-verify-secure-login-39281
+
+Note: This is an automated message. Please do not reply to this email.
+
+Thank you,
+Microsoft Account Security Department
+Case ID: MS-882910-SEC

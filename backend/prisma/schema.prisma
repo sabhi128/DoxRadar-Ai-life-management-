@@ -20,6 +20,10 @@ model User {
   lifeAudits LifeAudit[]
   incomes Income[]
   preference UserPreference?
+  gmailToken GmailToken?
+  emailLogs  EmailLog[]
+  notifications Notification[]
+  lastGmailIngestionAt DateTime?
 }
 
 model UserPreference {
@@ -92,4 +96,45 @@ model Income {
   updatedAt     DateTime @updatedAt
 
   @@index([userId])
+}
+
+model GmailToken {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiryDate   DateTime
+  email        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EmailLog {
+  id             String   @id @default(uuid())
+  gmailId        String   @unique
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject        String
+  sender         String
+  snippet        String?
+  classification String?  // e.g. Subscription, Invoice, Scam
+  extractedData  Json?    // e.g. { provider: 'Netflix', amount: 15.99 }
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("info") // info, success, warning, danger
+  title     String
+  message   String
+  metadata  Json?    // For linking to docId, subId, or gmailId
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
 }

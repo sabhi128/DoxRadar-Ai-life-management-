@@ -8,7 +8,7 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 // Categories the AI can assign
 const VALID_CATEGORIES = [
     'Contract', 'Insurance', 'ID', 'Bill', 'Legal',
-    'Medical', 'Financial', 'Personal', 'Certificate', 'Subscription', 'Other'
+    'Medical', 'Financial', 'Personal', 'Certificate', 'Subscription', 'Scam', 'Other'
 ];
 
 // Log API key status at module load (helps debug Vercel env issues)
@@ -121,6 +121,9 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
     "period": "string ('Monthly' or 'Yearly')",
     "currency": "string (e.g., USD)"
   },
+  "isScam": "boolean (true if this look like a phishing or scam attempt)",
+  "scamReason": "string (why it might be a scam, or null)",
+  "autonomousRecommendation": "string (if it's a bill/sub, offer a negotiation tip or advice, else null. e.g. 'This price seems high for 500Mbps, mention competitors for a 20% discount.')",
   "risks": ["List of risks, dangerous terms, or important obligations"],
   "tags": ["Relevant tags for categorization"]
 }`;

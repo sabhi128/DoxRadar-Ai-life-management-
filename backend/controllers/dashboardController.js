@@ -128,6 +128,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const storageLimit = planLimits[userPlan] || 20;
     const storagePercentage = Math.min(Math.round((totalDocs / storageLimit) * 100), 100);
 
+    // Fetch notifications (already read/unread handled by UI if needed, but here we take unread)
+    const notifications = await prisma.notification.findMany({
+        where: { userId: req.user.id, isRead: false },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+    });
+
     res.status(200).json({
         totalDocuments: totalDocs,
         totalMonthlyCost: totalMonthlyCost.toFixed(2),
@@ -140,7 +147,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         upcomingPayments,
         highCostSubscriptions,
         storagePercentage,
-        storageLimit
+        storageLimit,
+        notifications
     });
 });
 
@@ -175,19 +183,21 @@ const getRecentActivity = asyncHandler(async (req, res) => {
 const getDashboardSummary = asyncHandler(async (req, res) => {
     const today = new Date();
     // Run core queries in parallel
-    const [subscriptions, latestAudit, allDocs, incomes, preferences] = await Promise.all([
+    const [subscriptions, latestAudit, allDocs, incomes, preferences, gmailToken, notifications] = await Promise.all([
         prisma.subscription.findMany({ where: { userId: req.user.id } }),
         prisma.lifeAudit.findFirst({
             where: { userId: req.user.id },
             orderBy: { createdAt: 'desc' }
         }),
-        prisma.document.findMany({
-            where: { userId: req.user.id },
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, name: true, category: true, analysis: true, createdAt: true }
-        }),
+        prisma.document.findMany({ where: { userId: req.user.id } }),
         prisma.income.findMany({ where: { userId: req.user.id } }),
-        prisma.userPreference.findUnique({ where: { userId: req.user.id } })
+        prisma.userPreference.findUnique({ where: { userId: req.user.id } }),
+        prisma.gmailToken.findUnique({ where: { userId: req.user.id } }),
+        prisma.notification.findMany({
+            where: { userId: req.user.id, isRead: false },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        })
     ]);
 
     const threshold = preferences?.highCostThreshold || 50.0;
@@ -362,7 +372,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         user: {
-            plan: req.user.plan || 'Free'
+            plan: req.user.plan || 'Free',
+            isGmailConnected: !!gmailToken
         },
         stats: {
             totalDocuments: allDocs.length,
@@ -388,12 +399,25 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
             storageLimit,
             risksCount
         },
-        activityLog
+        activityLog,
+        notifications
     });
+});
+
+const markNotificationAsRead = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    await prisma.notification.update({
+        where: { id, userId: req.user.id },
+        data: { isRead: true }
+    });
+
+    res.status(200).json({ message: 'Notification marked as read' });
 });
 
 module.exports = {
     getDashboardStats,
     getRecentActivity,
-    getDashboardSummary
+    getDashboardSummary,
+    markNotificationAsRead
 };
