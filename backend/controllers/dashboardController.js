@@ -415,9 +415,19 @@ const markNotificationAsRead = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Notification marked as read' });
 });
 
+const markAllNotificationsAsRead = asyncHandler(async (req, res) => {
+    await prisma.notification.updateMany({
+        where: { userId: req.user.id, isRead: false },
+        data: { isRead: true }
+    });
+
+    res.status(200).json({ message: 'All notifications marked as read' });
+});
+
 module.exports = {
     getDashboardStats,
     getRecentActivity,
     getDashboardSummary,
-    markNotificationAsRead
+    markNotificationAsRead,
+    markAllNotificationsAsRead
 };

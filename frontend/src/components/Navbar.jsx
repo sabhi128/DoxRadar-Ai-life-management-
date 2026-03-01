@@ -46,6 +46,23 @@ const Navbar = () => {
         });
     };
 
+    const clearAllNotifs = async () => {
+        try {
+            await api.put('/dashboard/notifications/read-all');
+
+            setDismissedNotifIds(prev => {
+                const newDismissed = new Set(prev);
+                notifications.forEach(n => newDismissed.add(n.id));
+                localStorage.setItem('dismissedNotifs', JSON.stringify([...newDismissed]));
+                return newDismissed;
+            });
+
+            fetchNotifications();
+        } catch (error) {
+            console.error("Failed to clear notifications:", error);
+        }
+    };
+
     const activeNotifications = notifications.filter(n => !dismissedNotifIds.has(n.id));
 
     // Global toggle for all mobile menus
@@ -444,10 +461,12 @@ const Navbar = () => {
                                         className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-20 sm:top-full mt-2 sm:w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden ring-1 ring-black/5 z-[100]"
                                     >
                                         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
-                                            <h3 className="font-bold text-gray-800">Notifications</h3>
-                                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-                                                {activeNotifications.length}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="font-bold text-gray-800">Notifications</h3>
+                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                                                    {activeNotifications.length}
+                                                </span>
+                                            </div>
                                         </div>
 
                                         <div className="max-h-80 overflow-y-auto bg-white">
@@ -484,12 +503,18 @@ const Navbar = () => {
                                         </div>
 
                                         {activeNotifications.length > 0 && (
-                                            <div className="p-3 border-t border-gray-100 bg-white">
+                                            <div className="p-3 border-t border-gray-100 bg-white flex justify-between items-center gap-2">
+                                                <button
+                                                    onClick={clearAllNotifs}
+                                                    className="w-1/2 text-center py-2 text-sm font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                >
+                                                    Clear All
+                                                </button>
                                                 <button
                                                     onClick={() => { navigate('/life-audit'); setIsNotifOpen(false); }}
-                                                    className="w-full text-center text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                                                    className="w-1/2 text-center py-2 text-sm font-semibold text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-sm"
                                                 >
-                                                    View Full Report →
+                                                    View Report →
                                                 </button>
                                             </div>
                                         )}
