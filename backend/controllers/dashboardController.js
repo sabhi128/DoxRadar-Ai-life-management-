@@ -8,21 +8,19 @@ const prisma = require('../prismaClient');
 // @route   GET /api/dashboard/stats
 // @access  Private
 const getDashboardStats = asyncHandler(async (req, res) => {
-    // Run independent queries in parallel for performance
-    const [totalDocs, subscriptions, latestAudit, allDocsLight, preferences] = await Promise.all([
-        prisma.document.count({ where: { userId: req.user.id } }),
-        prisma.subscription.findMany({ where: { userId: req.user.id } }),
-        prisma.lifeAudit.findFirst({
-            where: { userId: req.user.id },
-            orderBy: { createdAt: 'desc' }
-        }),
-        // Fetch only necessary fields for expiration check
-        prisma.document.findMany({
-            where: { userId: req.user.id },
-            select: { id: true, name: true, category: true, analysis: true }
-        }),
-        prisma.userPreference.findUnique({ where: { userId: req.user.id } })
-    ]);
+    // Run sequentially to completely avoid Supabase Pgbouncer connection pool exhaustion on Vercel
+    const totalDocs = await prisma.document.count({ where: { userId: req.user.id } });
+    const subscriptions = await prisma.subscription.findMany({ where: { userId: req.user.id } });
+    const latestAudit = await prisma.lifeAudit.findFirst({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' }
+    });
+    // Fetch only necessary fields for expiration check (no huge base64 paths)
+    const allDocsLight = await prisma.document.findMany({
+        where: { userId: req.user.id },
+        select: { id: true, name: true, category: true, analysis: true }
+    });
+    const preferences = await prisma.userPreference.findUnique({ where: { userId: req.user.id } });
 
     const threshold = preferences?.highCostThreshold || 50.0;
 
@@ -182,23 +180,25 @@ const getRecentActivity = asyncHandler(async (req, res) => {
 // @access  Private
 const getDashboardSummary = asyncHandler(async (req, res) => {
     const today = new Date();
-    // Run core queries in parallel
-    const [subscriptions, latestAudit, allDocs, incomes, preferences, gmailToken, notifications] = await Promise.all([
-        prisma.subscription.findMany({ where: { userId: req.user.id } }),
-        prisma.lifeAudit.findFirst({
-            where: { userId: req.user.id },
-            orderBy: { createdAt: 'desc' }
-        }),
-        prisma.document.findMany({ where: { userId: req.user.id } }),
-        prisma.income.findMany({ where: { userId: req.user.id } }),
-        prisma.userPreference.findUnique({ where: { userId: req.user.id } }),
-        prisma.gmailToken.findUnique({ where: { userId: req.user.id } }),
-        prisma.notification.findMany({
-            where: { userId: req.user.id, isRead: false },
-            orderBy: { createdAt: 'desc' },
-            take: 10
-        })
-    ]);
+    // Process sequentially to protect Serverless connection pools
+    const subscriptions = await prisma.subscription.findMany({ where: { userId: req.user.id } });
+    const latestAudit = await prisma.lifeAudit.findFirst({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' }
+    });
+    // Only fetch fields needed for widgets, ignore large binary paths and full text
+    const allDocs = await prisma.document.findMany({
+        where: { userId: req.user.id },
+        select: { id: true, name: true, category: true, createdAt: true, analysis: true }
+    });
+    const incomes = await prisma.income.findMany({ where: { userId: req.user.id } });
+    const preferences = await prisma.userPreference.findUnique({ where: { userId: req.user.id } });
+    const gmailToken = await prisma.gmailToken.findUnique({ where: { userId: req.user.id } });
+    const notifications = await prisma.notification.findMany({
+        where: { userId: req.user.id, isRead: false },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+    });
 
     const threshold = preferences?.highCostThreshold || 50.0;
 

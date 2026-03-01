@@ -25,6 +25,15 @@ const autoLogSubscription = async (userId, analysis, sourceName) => {
                 }
             });
             console.log(`[SubscriptionService] Created subscription: ${subscription.name}`);
+
+            // Emit subscription creation notification
+            const { createNotification } = require('./notificationService');
+            await createNotification(userId, {
+                type: 'success',
+                title: '💳 New Subscription Found',
+                message: `Auto-logged "${subscription.name}" from your email.`
+            });
+
             return subscription;
         } catch (error) {
             console.error("[SubscriptionService] Error creating subscription:", error.message);

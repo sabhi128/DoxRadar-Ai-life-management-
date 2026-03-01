@@ -82,10 +82,11 @@ const runIngestionCycle = async () => {
 
                         console.log(`[IngestionEngine] AI analyzing: "${subject}" from ${from}`);
 
-                        // 4. Handle Attachments
+                        // 4. Handle Attachments (Recursively search nested multiparts)
                         let attachments = [];
-                        if (emailData.payload.parts) {
-                            for (const part of emailData.payload.parts) {
+                        const extractAttachments = async (parts) => {
+                            if (!parts) return;
+                            for (const part of parts) {
                                 if (part.filename && part.body && part.body.attachmentId) {
                                     console.log(`[IngestionEngine] Found attachment: ${part.filename} (${part.mimeType})`);
                                     const attachData = await require('./gmailService').getAttachment(userId, emailData.id, part.body.attachmentId);
@@ -97,12 +98,20 @@ const runIngestionCycle = async () => {
                                         });
                                     }
                                 }
+                                if (part.parts) {
+                                    await extractAttachments(part.parts);
+                                }
                             }
-                        }
+                        };
+
+                        await extractAttachments(emailData.payload.parts);
 
                         // 5. Run AI Analysis
                         let analysis;
-                        const supportedMimes = [
+
+                        // We still restrict what gets sent to the AI to prevent crashing the Gemini model with binary files,
+                        // but we will save ALL attachments to the database later in the loop.
+                        const aiSupportedMimes = [
                             'application/pdf',
                             'image/jpeg',
                             'image/png',
@@ -112,7 +121,8 @@ const runIngestionCycle = async () => {
                             'application/msword',
                             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                         ];
-                        const bestAttachment = attachments.find(a => supportedMimes.includes(a.mimeType) || a.mimeType.startsWith('image/'));
+
+                        const bestAttachment = attachments.find(a => aiSupportedMimes.includes(a.mimeType) || a.mimeType.startsWith('image/'));
 
                         if (bestAttachment) {
                             console.log(`[IngestionEngine] Analyzing attachment: ${bestAttachment.filename}`);
@@ -182,20 +192,20 @@ const runIngestionCycle = async () => {
                             await autoLogSubscription(userId, analysis, `Email: ${subject}`);
                         }
 
-                        // 6b. Save attachment to Documents
-                        // Save any valid attachment that passes the MIME filter
-                        if (bestAttachment) {
-                            console.log(`[IngestionEngine] Uploading attachment to storage: ${bestAttachment.filename}`);
+                        // 6b. Save ALL attachments to Documents (no restriction)
+                        // We upload every attachment found in the email, regardless of extension.
+                        for (const attachment of attachments) {
+                            console.log(`[IngestionEngine] Uploading attachment to storage: ${attachment.filename}`);
 
-                            const fileExt = path.extname(bestAttachment.filename);
-                            const storageFileName = `${Date.now()}_gmail_${bestAttachment.filename.replace(/\s+/g, '-')}`;
+                            const fileExt = path.extname(attachment.filename);
+                            const storageFileName = `${Date.now()}_gmail_${attachment.filename.replace(/\s+/g, '-')}`;
                             const storagePath = `user_${userId}/${storageFileName}`;
 
                             // Upload to Supabase Storage
                             const { data: uploadData, error: uploadError } = await supabase.storage
                                 .from('documents')
-                                .upload(storagePath, bestAttachment.buffer, {
-                                    contentType: bestAttachment.mimeType,
+                                .upload(storagePath, attachment.buffer, {
+                                    contentType: attachment.mimeType,
                                     upsert: false
                                 });
 
@@ -211,15 +221,22 @@ const runIngestionCycle = async () => {
                                 await prisma.document.create({
                                     data: {
                                         userId: userId,
-                                        name: bestAttachment.filename,
+                                        name: attachment.filename,
                                         category: analysis.suggestedCategory,
                                         type: fileExt.substring(1).toUpperCase() || 'FILE',
-                                        size: formatBytes(bestAttachment.buffer.length),
+                                        size: formatBytes(attachment.buffer.length),
                                         path: publicUrl,
                                         analysis: analysis
                                     }
                                 });
-                                console.log(`[IngestionEngine] Saved attachment as Document: ${bestAttachment.filename}`);
+                                console.log(`[IngestionEngine] Saved attachment as Document: ${attachment.filename}`);
+
+                                // Emit specific document upload notification
+                                await createNotification(userId, {
+                                    type: 'success',
+                                    title: '📄 New Document Saved',
+                                    message: `Auto-saved "${attachment.filename}" to your Documents.`
+                                });
                             }
                         }
 

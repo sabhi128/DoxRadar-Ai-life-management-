@@ -143,15 +143,19 @@ const Navbar = () => {
                 notifs.forEach(notif => {
                     if (!prevNotifIds.current.has(notif.id)) {
                         if (notif.title && notif.title.includes('Scan Started')) {
-                            toast.success(notif.title, { icon: '🔄', duration: 3000 });
+                            toast.success(notif.title, { icon: '🔄', duration: 6000 });
                         } else if (notif.title && notif.title.includes('Scan Complete')) {
-                            toast.success(notif.title, { icon: '✅', duration: 5000 });
+                            toast.success(notif.title, { icon: '✅', duration: 6000 });
+                        } else if (notif.title && notif.title.includes('New Document Saved')) {
+                            toast.success(notif.title, { icon: '📄', duration: 6000 });
+                        } else if (notif.title && notif.title.includes('New Subscription Found')) {
+                            toast.success(notif.title, { icon: '💳', duration: 6000 });
                         } else if (notif.type === 'danger') {
                             toast.error(notif.title, { duration: 6000 });
                         } else if (notif.type === 'warning') {
                             toast(notif.title, { icon: '⚠️', duration: 6000 });
                         } else {
-                            toast.success(notif.title, { icon: '🔔', duration: 5000 });
+                            toast.success(notif.title, { icon: '🔔', duration: 6000 });
                         }
                     }
                 });
