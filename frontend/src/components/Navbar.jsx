@@ -30,6 +30,24 @@ const Navbar = () => {
     const [notifLoading, setNotifLoading] = useState(false);
     const prevNotifIds = useRef(new Set());
 
+    const getDismissedNotifIds = () => {
+        try { return new Set(JSON.parse(localStorage.getItem('dismissedNotifs') || '[]')); }
+        catch { return new Set(); }
+    };
+    const [dismissedNotifIds, setDismissedNotifIds] = useState(getDismissedNotifIds());
+
+    const dismissNotif = (id) => {
+        setDismissedNotifIds(prev => {
+            if (prev.has(id)) return prev;
+            const newDismissed = new Set(prev);
+            newDismissed.add(id);
+            localStorage.setItem('dismissedNotifs', JSON.stringify([...newDismissed]));
+            return newDismissed;
+        });
+    };
+
+    const activeNotifications = notifications.filter(n => !dismissedNotifIds.has(n.id));
+
     // Global toggle for all mobile menus
     const closeAllMenus = () => {
         setIsMobileMenuOpen(false);
@@ -130,6 +148,18 @@ const Navbar = () => {
                             try {
                                 await api.put(`/dashboard/notifications/${notif.id}/read`);
                                 fetchNotifications(); // Refresh
+
+                                // Conditional Routing Based on Title
+                                if (notif.title) {
+                                    const t = notif.title.toLowerCase();
+                                    if (t.includes('document')) {
+                                        navigate('/documents');
+                                    } else if (t.includes('subscription') || t.includes('cost')) {
+                                        navigate('/subscriptions');
+                                    } else if (t.includes('scam') || t.includes('autonomous')) {
+                                        navigate('/life-audit');
+                                    }
+                                }
                             } catch (err) {
                                 console.error("Failed to mark notification as read");
                             }
@@ -387,14 +417,17 @@ const Navbar = () => {
                                     setIsNotifOpen(newState);
                                     setIsProfileOpen(false);
                                     setIsMobileMenuOpen(false);
-                                    if (newState) fetchNotifications();
+                                    if (newState) {
+                                        fetchNotifications();
+                                        // On mobile, keep it open or behave as desired
+                                    }
                                 }}
                                 className="relative p-2.5 rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors"
                             >
                                 <Bell size={20} />
-                                {notifications.length > 0 && (
+                                {activeNotifications.length > 0 && (
                                     <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold h-5 w-5 min-w-[20px] min-h-[20px] rounded-full flex items-center justify-center border-2 border-white shadow-sm transition-transform hover:scale-110">
-                                        {notifications.length}
+                                        {activeNotifications.length}
                                     </span>
                                 )}
                             </button>
@@ -413,7 +446,7 @@ const Navbar = () => {
                                         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                                             <h3 className="font-bold text-gray-800">Notifications</h3>
                                             <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-                                                {notifications.length}
+                                                {activeNotifications.length}
                                             </span>
                                         </div>
 
@@ -422,12 +455,16 @@ const Navbar = () => {
                                                 <div className="flex justify-center py-8">
                                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                                                 </div>
-                                            ) : notifications.length > 0 ? (
+                                            ) : activeNotifications.length > 0 ? (
                                                 <div className="p-2 space-y-1">
-                                                    {notifications.map(notif => (
+                                                    {activeNotifications.map(notif => (
                                                         <button
                                                             key={notif.id}
-                                                            onClick={() => { notif.action?.(); setIsNotifOpen(false); }}
+                                                            onClick={() => {
+                                                                dismissNotif(notif.id);
+                                                                notif.action?.();
+                                                                setIsNotifOpen(false);
+                                                            }}
                                                             className={`w-full text-left flex items-start gap-3 p-3 rounded-xl border transition-colors hover:opacity-80 ${notifColors[notif.type]}`}
                                                         >
                                                             <notif.icon size={16} className={`mt-0.5 flex-shrink-0 ${notifIconColors[notif.type]}`} />
@@ -446,7 +483,7 @@ const Navbar = () => {
                                             )}
                                         </div>
 
-                                        {notifications.length > 0 && (
+                                        {activeNotifications.length > 0 && (
                                             <div className="p-3 border-t border-gray-100 bg-white">
                                                 <button
                                                     onClick={() => { navigate('/life-audit'); setIsNotifOpen(false); }}

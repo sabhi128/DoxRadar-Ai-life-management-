@@ -130,7 +130,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const notifications = await prisma.notification.findMany({
         where: { userId: req.user.id, isRead: false },
         orderBy: { createdAt: 'desc' },
-        take: 10
+        take: 50
     });
 
     res.status(200).json({
