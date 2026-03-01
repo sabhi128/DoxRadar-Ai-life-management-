@@ -28,6 +28,7 @@ const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [notifLoading, setNotifLoading] = useState(false);
+    const prevNotifIds = useRef(new Set());
 
     // Global toggle for all mobile menus
     const closeAllMenus = () => {
@@ -137,6 +138,29 @@ const Navbar = () => {
                 });
             }
 
+            // Trigger toast for new notifications if not initial load
+            if (prevNotifIds.current.size > 0) {
+                notifs.forEach(notif => {
+                    if (!prevNotifIds.current.has(notif.id)) {
+                        if (notif.title && notif.title.includes('Scan Started')) {
+                            toast.success(notif.title, { icon: '🔄', duration: 3000 });
+                        } else if (notif.title && notif.title.includes('Scan Complete')) {
+                            toast.success(notif.title, { icon: '✅', duration: 5000 });
+                        } else if (notif.type === 'danger') {
+                            toast.error(notif.title, { duration: 6000 });
+                        } else if (notif.type === 'warning') {
+                            toast(notif.title, { icon: '⚠️', duration: 6000 });
+                        } else {
+                            toast.success(notif.title, { icon: '🔔', duration: 5000 });
+                        }
+                    }
+                });
+            }
+
+            // Update seen IDs
+            const currentIds = new Set(notifs.map(n => n.id));
+            prevNotifIds.current = currentIds;
+
             setNotifications(notifs);
         } catch (err) {
             console.error('Failed to load notifications', err);
@@ -166,6 +190,16 @@ const Navbar = () => {
             delete window.openBillingModal;
             window.removeEventListener('open-billing-modal', handleOpenBilling);
         };
+    }, []);
+
+    // Fetch notifications periodically (every 30 seconds) for real-time updates
+    useEffect(() => {
+        fetchNotifications(); // initial fetch
+        const intervalId = setInterval(() => {
+            fetchNotifications();
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(intervalId);
     }, []);
 
     // Close dropdowns on outside click

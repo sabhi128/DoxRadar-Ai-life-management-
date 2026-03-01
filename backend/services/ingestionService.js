@@ -36,6 +36,21 @@ const runIngestionCycle = async () => {
             console.log(`[IngestionEngine] Fetching for user ${email}...`);
 
             try {
+                // Clear out previous generic scan notifications to prevent dashboard spam
+                await prisma.notification.deleteMany({
+                    where: {
+                        userId: userId,
+                        title: 'Email Auto-Scan Started'
+                    }
+                });
+
+                // Create a fresh active status notification
+                await createNotification(userId, {
+                    type: 'info',
+                    title: 'Email Auto-Scan Started',
+                    message: `DoxRadar is actively scanning ${email} for new documents and subscriptions.`
+                });
+
                 // 2. Fetch unread emails
                 const emails = await fetchUnreadEmails(userId);
                 console.log(`[IngestionEngine] Found ${emails.length} new messages.`);
@@ -45,6 +60,8 @@ const runIngestionCycle = async () => {
                     where: { userId }
                 });
                 const threshold = preferences?.highCostThreshold || 50.0;
+
+                let processedCount = 0;
 
                 for (const emailData of emails) {
                     try {
@@ -206,6 +223,9 @@ const runIngestionCycle = async () => {
                             }
                         }
 
+                        // Increment processed count
+                        processedCount++;
+
                     } catch (emailErr) {
                         console.error(`[IngestionEngine] Failed to process message ${emailData.id}:`, emailErr.message);
                     }
@@ -213,6 +233,34 @@ const runIngestionCycle = async () => {
 
                 // 8. Update last ingestion time ONLY if this user's cycle succeeded
                 await updateLastIngestion(userId);
+
+                // 9. Emit Cycle Finished Notification
+                await prisma.notification.deleteMany({
+                    where: {
+                        userId: userId,
+                        title: 'Email Auto-Scan Started'
+                    }
+                });
+
+                if (processedCount > 0) {
+                    await createNotification(userId, {
+                        type: 'success',
+                        title: '✅ Scan Complete',
+                        message: `Successfully processed ${processedCount} new document(s) and subscription(s).`
+                    });
+                } else if (emails.length > 0) {
+                    await createNotification(userId, {
+                        type: 'info',
+                        title: '✅ Scan Complete',
+                        message: `Checked ${emails.length} new messages, but found no relevant documents or subscriptions.`
+                    });
+                } else {
+                    await createNotification(userId, {
+                        type: 'info',
+                        title: '✅ Scan Complete',
+                        message: `No new unread messages found in your inbox.`
+                    });
+                }
 
             } catch (userErr) {
                 console.error(`[IngestionEngine] Skipping user ${email} due to error:`, userErr.message);
