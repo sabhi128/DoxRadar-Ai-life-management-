@@ -154,36 +154,47 @@ const runIngestionCycle = async () => {
                             }
                         });
 
-                        // 7a. Scam Detection
+                        // 7a. Risk Intelligence & Action Recommendation Engine
+                        // Replaces the old static categorizations with dynamic AI-driven severity & actions.
+                        const severityColors = {
+                            'Low': 'info',
+                            'Medium': 'warning',
+                            'High': 'warning',
+                            'Critical': 'danger'
+                        };
+
+                        const notifType = severityColors[analysis.severityLevel] || 'info';
+
                         if (analysis.isScam || analysis.suggestedCategory === 'Scam') {
                             await createNotification(userId, {
                                 type: 'danger',
                                 title: '🚨 Scam Detected',
-                                message: `Suspicious email found: "${subject}". Reason: ${analysis.scamReason || 'Phishing pattern detected.'}`,
-                                metadata: { gmailId: emailData.id, logId: emailLog.id }
+                                message: analysis.actionRecommendation || `Suspicious email found: "${subject}". ${analysis.scamReason || ''}`,
+                                metadata: { gmailId: emailData.id, logId: emailLog.id, severity: analysis.severityLevel }
                             });
                         }
 
-                        // 7b. High Cost & Recommendation
+                        // Emit Action Required Notification if the AI flagged one
+                        if (analysis.requiresAction && analysis.actionRecommendation && !(analysis.isScam || analysis.suggestedCategory === 'Scam')) {
+                            await createNotification(userId, {
+                                type: notifType,
+                                title: analysis.severityLevel === 'Critical' ? '🛑 URGENT ACTION REQUIRED' : '⚡ Action Recommended',
+                                message: analysis.actionRecommendation,
+                                metadata: { gmailId: emailData.id, logId: emailLog.id, severity: analysis.severityLevel }
+                            });
+                        }
+
+                        // 7b. High Cost Monitoring (Fallback in case AI missed it)
                         const cost = parseFloat(analysis.subscriptionDetails?.price || 0);
                         const period = analysis.subscriptionDetails?.period || 'Monthly';
                         const monthlyCost = period === 'Monthly' ? cost : cost / 12;
 
-                        if (monthlyCost >= threshold) {
+                        if (monthlyCost >= threshold && !analysis.requiresAction) {
                             await createNotification(userId, {
                                 type: 'warning',
                                 title: '💰 High Cost Detected',
                                 message: `New high-cost item found: ${analysis.subscriptionDetails?.name || 'Service'}. Cost: $${monthlyCost.toFixed(2)}/mo.`,
-                                metadata: { gmailId: emailData.id, logId: emailLog.id }
-                            });
-                        }
-
-                        if (analysis.autonomousRecommendation) {
-                            await createNotification(userId, {
-                                type: 'success',
-                                title: '🤖 Autonomous Advice',
-                                message: `Recommendation: ${analysis.autonomousRecommendation}`,
-                                metadata: { gmailId: emailData.id, logId: emailLog.id }
+                                metadata: { gmailId: emailData.id, logId: emailLog.id, severity: 'Medium' }
                             });
                         }
 

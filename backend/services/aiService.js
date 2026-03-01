@@ -106,11 +106,17 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
         }
 
         // --- BUILD AI REQUEST ---
-        const systemPrompt = 'You analyze documents and return JSON only. No markdown, no explanation. No text outside the JSON object.';
+        const systemPrompt = `You are a highly advanced US-focused Action Intelligence Engine. Your job is NOT just to categorize documents, but to parse them as a sensor, evaluate RISK, determine financial IMPACT, and recommend proactive ACTION. Return ONLY valid JSON. No markdown, no conversational text.
+
+Critical Rules for Action Engine:
+1. Detect late-fee risk (US-centric keywords: "Past Due", "Final Notice"). If found, set "severityLevel" to "Critical", "requiresAction" to true, and "actionRecommendation" to: "URGENT: Pay [amount] by [date] to avoid late fee and protect credit score."
+2. Detect overdue bills. Set "severityLevel" to "Critical" and recommend immediate payment.
+3. Detect abnormal price increases or high-cost subscriptions. Set "requiresAction" to true and "actionRecommendation" to: "Draft negotiation script to lower bill."
+4. US-Centric Scam Detection: Explicitly flag IRS/SSA impersonation, fake tech support (GeekSquad, Norton, McAfee), and spoofed telecom providers (AT&T, Verizon) as "Scam". Set "severityLevel" to "Critical", "requiresAction" to true, and provide a clear scam warning explanation in "actionRecommendation".`;
 
         const jsonSchema = `{
   "summary": "2-3 sentence executive summary of the document",
-  "plainLanguageExplanation": "A paragraph explaining what this document means in simple, everyday language. Focus on what the reader should know and any obligations or rights.",
+  "plainLanguageExplanation": "A paragraph explaining what this document means in simple, everyday language.",
   "suggestedCategory": "One of: ${VALID_CATEGORIES.join(', ')}",
   "expiryDate": "YYYY-MM-DD or null",
   "renewalDate": "YYYY-MM-DD or null",
@@ -123,7 +129,9 @@ const analyzeDocument = async (fileBuffer, mimeType) => {
   },
   "isScam": "boolean (true if this look like a phishing or scam attempt)",
   "scamReason": "string (why it might be a scam, or null)",
-  "autonomousRecommendation": "string (if it's a bill/sub, offer a negotiation tip or advice, else null. e.g. 'This price seems high for 500Mbps, mention competitors for a 20% discount.')",
+  "severityLevel": "string ('Low', 'Medium', 'High', 'Critical')",
+  "requiresAction": "boolean (true if the user must take an action like paying, negotiating, or avoiding a scam)",
+  "actionRecommendation": "string (the specific action text, negotiation script draft, or scam warning, or null if no action needed)",
   "risks": ["List of risks, dangerous terms, or important obligations"],
   "tags": ["Relevant tags for categorization"]
 }`;

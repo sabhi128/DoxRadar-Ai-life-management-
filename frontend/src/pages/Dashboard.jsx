@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, TrendingUp, TrendingDown, MoreVertical, Plus, Activity, CreditCard, AlertTriangle, FileWarning, Lock, DollarSign, X, Shield, Zap, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
@@ -44,6 +45,7 @@ const CountUp = ({ end, duration = 0.8, prefix = '', suffix = '' }) => {
 
 const Dashboard = () => {
     const { setGlobalModal } = useAuth();
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         totalDocuments: 0,
         avgCheckIn: '--:--',
@@ -58,6 +60,7 @@ const Dashboard = () => {
     const localUser = JSON.parse(localStorage.getItem('user') || '{}');
     const [refreshKey, setRefreshKey] = useState(0);
     const [activityLog, setActivityLog] = useState([]);
+    const [actionItems, setActionItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openActionId, setOpenActionId] = useState(null);
     const [howItWorksOpen, setHowItWorksOpen] = useState(false);
@@ -118,6 +121,14 @@ const Dashboard = () => {
                         user: res.data.user
                     });
                     setActivityLog(res.data.activityLog || []);
+
+                    // Filter notifications for only actionable ones (danger/warning severity from AI)
+                    const activeAlerts = (res.data.notifications || []).filter(n =>
+                        (n.type === 'danger' || n.type === 'warning') &&
+                        !n.title?.includes('Expiring') &&
+                        !n.title?.includes('Due')
+                    );
+                    setActionItems(activeAlerts);
                 }
             } catch (error) {
                 console.error("Error fetching dashboard summary:", error);
@@ -328,6 +339,71 @@ const Dashboard = () => {
                             </div>
                         </div>
                     </motion.div>
+
+                    {/* Agentic Action Center */}
+                    {actionItems.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15, duration: 0.5 }}
+                            className="card p-6 bg-white border border-red-200/50 shadow-lg relative overflow-hidden"
+                        >
+                            {/* Urgent pulsing background element */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-400/10 rounded-full blur-3xl animate-pulse pointer-events-none"></div>
+
+                            <div className="flex items-center gap-3 mb-4 relative z-10">
+                                <div className="p-2.5 bg-red-50 text-red-600 rounded-xl relative">
+                                    <Shield size={22} />
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-ping"></div>
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-800">Agent Action Required</h3>
+                                    <p className="text-sm text-red-500 font-medium">Critical risks detected that need your immediate attention</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 relative z-10">
+                                {actionItems.map(item => (
+                                    <div key={item.id} className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center p-4 bg-red-50/50 rounded-xl border border-red-100 hover:bg-red-50 transition-colors">
+                                        <div className="flex gap-4 items-start">
+                                            <div className="mt-1 flex-shrink-0 text-red-500">
+                                                {item.type === 'danger' ? <AlertTriangle size={20} /> : <Zap size={20} />}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-900">{item.title}</h4>
+                                                <p className="text-sm text-gray-600 mt-1">{item.message}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await api.put(`/dashboard/notifications/${item.id}/read`);
+                                                        setRefreshKey(prev => prev + 1);
+
+                                                        // Navigate based on Action Engine intent
+                                                        if (item.title) {
+                                                            const t = item.title.toLowerCase();
+                                                            if (t.includes('document')) {
+                                                                navigate('/documents');
+                                                            } else if (t.includes('subscription') || t.includes('cost') || t.includes('bill')) {
+                                                                navigate('/subscriptions');
+                                                            } else if (t.includes('scam') || t.includes('action required') || t.includes('action recommended')) {
+                                                                navigate('/life-audit');
+                                                            }
+                                                        }
+                                                    } catch (e) { console.error(e) }
+                                                }}
+                                                className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-sm transition-colors"
+                                            >
+                                                Take Action Fix
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
 
                     {/* Expiring Documents Alert */}
                     {((stats.expiringDocuments?.length > 0) || (stats.expiredDocuments?.length > 0)) && (
