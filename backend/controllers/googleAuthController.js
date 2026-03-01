@@ -27,15 +27,29 @@ const getGoogleAuthUrl = asyncHandler(async (req, res) => {
     res.status(200).json({ url });
 });
 
+// Helper to get the base URL
+const getFrontendUrl = (req) => {
+    // 1. Explicitly set env variable
+    if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+    // 2. Vercel specific headers/host detection
+    const host = req.get('host');
+    if (host && host.includes('vercel.app')) {
+        return `https://${host}`;
+    }
+    // 3. True absolute fallback for local development
+    return 'http://localhost:5173';
+};
+
 // @desc    Google Auth Callback
 // @route   GET /api/auth/google/callback
 // @access  Public (identified via state)
 const googleCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const userId = state;
+    const frontendUrl = getFrontendUrl(req);
 
     if (!code || !userId) {
-        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=gmail_auth_failed`);
+        return res.redirect(`${frontendUrl}/dashboard?error=gmail_auth_failed`);
     }
 
     try {
@@ -64,10 +78,10 @@ const googleCallback = asyncHandler(async (req, res) => {
             }
         });
 
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?gmail=connected`);
+        res.redirect(`${frontendUrl}/dashboard?gmail=connected`);
     } catch (error) {
         console.error('Google Auth Error:', error.message);
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=gmail_token_error`);
+        res.redirect(`${frontendUrl}/dashboard?error=gmail_token_error`);
     }
 });
 
