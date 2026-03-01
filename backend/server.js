@@ -77,9 +77,9 @@ if (require.main === module) {
         console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 
         // Start autonomous ingestion engine
-        // Run once on start then every 10 minutes
+        // Run once on start then every 5 minutes
         setTimeout(() => runIngestionCycle(), 5000); // 5s delay on start
-        setInterval(runIngestionCycle, 10 * 60 * 1000);
+        setInterval(runIngestionCycle, 5 * 60 * 1000);
     });
 }
 

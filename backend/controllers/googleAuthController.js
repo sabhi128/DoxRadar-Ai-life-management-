@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 const asyncHandler = require('express-async-handler');
 const prisma = require('../prismaClient');
+const { runIngestionCycle } = require('../services/ingestionService');
 
 const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -78,6 +79,10 @@ const googleCallback = asyncHandler(async (req, res) => {
             }
         });
 
+        // Trigger an immediate background ingestion cycle for this new connection
+        // Run fire-and-forget so it doesn't block the redirect
+        runIngestionCycle().catch(err => console.error("Immediate ingestion trigger failed:", err));
+
         res.redirect(`${frontendUrl}/dashboard?gmail=connected`);
     } catch (error) {
         console.error('Google Auth Error:', error.message);
@@ -101,6 +106,9 @@ const disconnectGmail = asyncHandler(async (req, res) => {
             where: { id: req.user.id },
             data: { lastGmailIngestionAt: null }
         });
+
+        // Trigger a background cycle to clear anomalies/state if needed
+        runIngestionCycle().catch(err => console.error("Immediate ingestion trigger failed:", err));
 
         res.status(200).json({ message: 'Gmail disconnected successfully' });
     } catch (error) {
